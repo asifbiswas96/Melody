@@ -14,7 +14,7 @@ on:
 
 jobs:
   build_debug:
-    name: Build Universal GMS Debug
+    name: Build Universal FOSS Debug
     runs-on: ubuntu-latest
     if: github.actor != 'dependabot[bot]'
     steps:
@@ -47,6 +47,9 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
+      - name: Apply Melody Phase 1 patch
+        run: unzip -o 1-melody_phase1_patch.zip -d .
+
       - name: Build Debug APK
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
@@ -55,12 +58,12 @@ jobs:
           LIBREFM_SECRET: ${{ secrets.LIBREFM_SECRET }}
           DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
         run: |
-          ./gradlew assembleUniversalGmsDebug --no-configuration-cache --console=plain --warning-mode summary
+          ./gradlew assembleUniversalFossDebug --no-configuration-cache --console=plain --warning-mode summary
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-universal-gms-debug
-          path: app/build/outputs/apk/universalGms/debug/*.apk
+          name: app-universal-foss-debug
+          path: app/build/outputs/apk/universalFoss/debug/*.apk
           # a debug apk is only for trying the build, after a week it's just eating actions storage
           retention-days: 7
