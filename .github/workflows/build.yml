@@ -50,7 +50,7 @@ jobs:
       - name: Apply Melody UI patches
         run: |
           unzip -o 1-melody_phase1_patch.zip -d .
-          if [ -f 2-melody_phase2_patch.zip ]; then unzip -o 2-melody_phase2_patch.zip -d .; fi
+          unzip -o 2-melody_phase2_patch.zip -d .
 
       - name: Build Debug APK
         env:
@@ -69,3 +69,17 @@ jobs:
           path: app/build/outputs/apk/universalFoss/debug/*.apk
           # a debug apk is only for trying the build, after a week it's just eating actions storage
           retention-days: 7
+
+      # Guest upload, no account; the link goes to the owner privately. This is how the APK leaves CI.
+      - name: Upload APK to Gofile
+        if: success()
+        run: |
+          APK=$(ls app/build/outputs/apk/universalFoss/debug/*.apk | head -1)
+          SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
+          echo "gofile server: $SERVER"
+          RESP=$(curl -sS --retry 3 -F "file=@${APK}" "https://${SERVER}.gofile.io/contents/uploadfile")
+          echo "$RESP" | jq '{status, downloadPage: .data.downloadPage, name: .data.name, size: .data.size, md5: .data.md5}'
+          PAGE=$(echo "$RESP" | jq -r '.data.downloadPage // empty')
+          echo "### Melody Debug APK" >> "$GITHUB_STEP_SUMMARY"
+          echo "Gofile: $PAGE" >> "$GITHUB_STEP_SUMMARY"
+          test -n "$PAGE"
