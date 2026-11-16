@@ -1,0 +1,46 @@
+name: Screenshot Check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  screenshots:
+    name: Emulator screenshots
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Download latest available debug APK
+        run: |
+          for id in $(gh run list --workflow "CI & Debug Build" --limit 8 --json databaseId --jq '.[].databaseId'); do
+            if gh run download "$id" --name app-universal-foss-debug --dir apkdir 2>/dev/null; then
+              echo "Using APK from run $id"
+              break
+            fi
+          done
+          ls -la apkdir/
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Boot emulator and capture screenshots
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: default
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash -c "for i in 1 2 3 4 5; do curl -sfL https://raw.githubusercontent.com/asifbiswas96/Melody/main/tools/ci_screenshots.sh -o /tmp/ci_screenshots.sh && break || sleep 10; done; [ -s /tmp/ci_screenshots.sh ] || cp tools/ci_screenshots.sh /tmp/ci_screenshots.sh; bash /tmp/ci_screenshots.sh"
