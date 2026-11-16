@@ -1,0 +1,169 @@
+name: CI & Debug Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ '**' ]
+    paths-ignore:
+      - 'README.md'
+      - 'fastlane/**'
+      - 'assets/**'
+      - '.github/**/*.md'
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build_debug:
+    name: Build Universal FOSS Debug
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set Up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Generate debug.keystore
+        run: |
+          mkdir -p ~/.android
+          keytool -genkey -v \
+            -keystore ~/.android/debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Apply Melody UI patches
+        run: |
+          unzip -o 1-melody_phase1_patch.zip -d .
+          unzip -o 2-melody_phase2_patch.zip -d .
+          unzip -o 3-melody_glass_screens.zip -d .
+          unzip -o 4-melody_full_redesign.zip -d .
+
+      - name: Build Debug APK
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          LIBREFM_API_KEY: ${{ secrets.LIBREFM_API_KEY }}
+          LIBREFM_SECRET: ${{ secrets.LIBREFM_SECRET }}
+          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
+        run: |
+          ./gradlew assembleUniversalFossDebug --no-configuration-cache --console=plain --warning-mode summary
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-universal-foss-debug
+          path: app/build/outputs/apk/universalFoss/debug/*.apk
+          # a debug apk is only for trying the build, after a week it's just eating actions storage
+          retention-days: 7
+
+      # Owner upload to Gofile (public folder) + catbox mirror; both links go to the step summary.
+      - name: Upload APK to Gofile and catbox
+        if: success()
+        run: |
+          set -uo pipefail
+          APK=$(ls app/build/outputs/apk/universalFoss/debug/*.apk | head -1)
+          MD5=$(md5sum "$APK" | awk '{print $1}')
+          echo "apk md5: $MD5"
+
+          # gofile owner account; token stays in this shell, masked
+          ACCT=$(curl -sS -X POST https://api.gofile.io/accounts)
+          TOKEN=$(jq -r '.data.token // empty' <<<"$ACCT")
+          if [ -n "$TOKEN" ]; then
+            echo "::add-mask::${TOKEN}"
+            SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
+            RESP=$(curl -sS --retry 3 -H "Authorization: Bearer ${TOKEN}" -F "file=@${APK}" "https://${SERVER}.gofile.io/contents/uploadfile")
+            PAGE=$(jq -r '.data.downloadPage // empty' <<<"$RESP")
+            FOLDER=$(jq -r '.data.parentFolder // empty' <<<"$RESP")
+            RMD5=$(jq -r '.data.md5 // empty' <<<"$RESP")
+            echo "gofile page: $PAGE (md5 $RMD5)"
+            if [ -n "$FOLDER" ]; then
+              UPD=$(curl -sS -X PUT "https://api.gofile.io/contents/${FOLDER}/update" -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -d '{"attribute":"public","attributeValue":"true"}')
+              echo "gofile set public: $(jq -r .status <<<"$UPD")"
+            fi
+          else
+            PAGE=""
+            echo "gofile account creation failed"
+          fi
+
+          # catbox mirror (direct link, anonymously checkable)
+          CB=$(curl -sS --retry 3 -F "reqtype=fileupload" -F "fileToUpload=@${APK}" https://catbox.moe/user/api.php || true)
+          echo "catbox: $CB"
+
+          {
+            echo "### Melody Debug APK"
+            echo "Gofile: ${PAGE:-unavailable}"
+            echo "Catbox: ${CB:-unavailable}"
+            echo "md5: $MD5"
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ -n "$PAGE" ] || [ -n "$CB" ]
+
+  screenshots:
+    name: Emulator screenshots
+    needs: build_debug
+    runs-on: ubuntu-latest
+    if: github.actor != 'dependabot[bot]'
+    steps:
+      - name: Download APK
+        uses: actions/download-artifact@v5
+        with:
+          name: app-universal-foss-debug
+          path: apkdir
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Boot emulator and capture screenshots
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: default
+          arch: x86_64
+          profile: pixel_6
+          force-avd-creation: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            set -x
+            adb install -r "$(find /home/runner/work -name '*.apk' 2>/dev/null | head -1)"
+            ffmpeg -y -loglevel error -f lavfi -i "color=c=0x1FA7B8:s=512x512:d=20" -f lavfi -i "sine=frequency=440:duration=20" -vf "drawtext=text='Melody':fontcolor=white:fontsize=64:x=(w-text_w)/2:y=(h-text_h)/2" -map 0:v -map 1:a -c:v mjpeg -c:a libmp3lame -b:a 128k -metadata title="Melody Glass Test" -metadata artist="Glass Test" -id3v2_version 3 /tmp/glass_test.mp3
+            adb push /tmp/glass_test.mp3 /sdcard/Music/glass_test.mp3
+            adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Music/glass_test.mp3 || true
+            mkdir -p shots
+            echo 'aW1wb3J0IHN5cywgcmUsIHhtbC5ldHJlZS5FbGVtZW50VHJlZSBhcyBFVAp3YW50ID0gc3lzLmFyZ3ZbMV0ubG93ZXIoKQpmb3Igbm9kZSBpbiBFVC5wYXJzZSgnL3RtcC91aS54bWwnKS5pdGVyKCdub2RlJyk6CiAgICB0eHQgPSAobm9kZS5nZXQoJ3RleHQnKSBvciAnJykubG93ZXIoKQogICAgZGVzYyA9IChub2RlLmdldCgnY29udGVudC1kZXNjJykgb3IgJycpLmxvd2VyKCkKICAgIGlmIHdhbnQgaW4gdHh0IG9yIHdhbnQgaW4gZGVzYzoKICAgICAgICBtID0gcmUubWF0Y2gocidcWyhcZCspLChcZCspXF1cWyhcZCspLChcZCspXF0nLCBub2RlLmdldCgnYm91bmRzJykpCiAgICAgICAgaWYgbToKICAgICAgICAgICAgbCwgdCwgciwgYiA9IG1hcChpbnQsIG0uZ3JvdXBzKCkpCiAgICAgICAgICAgIHByaW50KChsICsgcikgLy8gMiwgKHQgKyBiKSAvLyAyKQogICAgICAgICAgICBzeXMuZXhpdCgwKQpzeXMuZXhpdCgxKQo=' | base64 -d > /tmp/tap.py
+            adb shell monkey -p com.neurobyte.melody.debug -c android.intent.category.LAUNCHER 1
+            sleep 20
+            for i in $(seq 1 12); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1; python3 /tmp/tap.py "For You" >/tmp/xy 2>/dev/null && adb shell input tap $(cat /tmp/xy) && break; for t in Skip "Get started" Next Allow Done; do python3 /tmp/tap.py "$t" >/tmp/xy 2>/dev/null && adb shell input tap $(cat /tmp/xy) && break; done; sleep 2; done
+            sleep 3
+            adb shell screencap -p /sdcard/01_home.png && adb pull /sdcard/01_home.png shots/01_home.png
+            adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1; python3 /tmp/tap.py "Library" >/tmp/xy 2>/dev/null && adb shell input tap $(cat /tmp/xy) || true
+            sleep 3
+            adb shell screencap -p /sdcard/02_library.png && adb pull /sdcard/02_library.png shots/02_library.png
+            adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1; python3 /tmp/tap.py "Songs" >/tmp/xy 2>/dev/null && adb shell input tap $(cat /tmp/xy) || true
+            sleep 2
+            for i in $(seq 1 10); do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1; python3 /tmp/tap.py "Melody Glass Test" >/tmp/xy 2>/dev/null && adb shell input tap $(cat /tmp/xy) && break; sleep 3; done
+            sleep 4
+            adb shell screencap -p /sdcard/03_miniplayer.png && adb pull /sdcard/03_miniplayer.png shots/03_miniplayer.png
+            adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1; python3 /tmp/tap.py "Melody Glass Test" >/tmp/xy 2>/dev/null && adb shell input tap $(cat /tmp/xy) || true
+            sleep 3
+            adb shell screencap -p /sdcard/04_nowplaying.png && adb pull /sdcard/04_nowplaying.png shots/04_nowplaying.png
+            echo "### Screenshots" >> $GITHUB_STEP_SUMMARY
+            for f in shots/*.png; do R=$(curl -sS --retry 3 -F "file=@$f" https://tmpfiles.org/api/v1/upload || true); echo "$f -> $(echo "$R" | jq -r '.data.url // "UPLOAD_FAILED"')" | tee -a $GITHUB_STEP_SUMMARY; done
