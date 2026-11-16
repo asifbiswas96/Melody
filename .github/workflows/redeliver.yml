@@ -72,7 +72,7 @@ jobs:
 
       - name: Verify anonymous access
         run: |
-          set -euo pipefail
+          set -uo pipefail
           FOLDER="${{ github.event.inputs.folder_id }}"
           PAGE=""
           if [ -z "$FOLDER" ]; then
@@ -81,33 +81,43 @@ jobs:
           else
             PAGE="https://gofile.io/d/${FOLDER}"
           fi
-          [ -n "$FOLDER" ] || { echo "::error::no folder to verify"; exit 1; }
+          if [ -z "$FOLDER" ]; then echo "::error::no folder to verify"; exit 1; fi
           echo "verifying folder: ${FOLDER}"
 
           # Anonymous route used by gofile's own web frontend: the public
           # websiteToken (embedded in their JS, no account). Account tokens get
           # error-notPremium on this endpoint, so this is the correct probe.
-          WT=""
-          for js in $(curl -s https://gofile.io/ | grep -oE '"[^"]*\.js[^"]*"' | tr -d '"' | sort -u); do
-            case "$js" in /*) url="https://gofile.io${js}";; http*) url="$js";; *) continue;; esac
-            CAND=$(curl -s "$url" | grep -oE 'websiteToken["'"'"']?[:=]["'"'"'][A-Za-z0-9]+' | grep -oE '[A-Za-z0-9]+$' | head -1)
-            [ -n "$CAND" ] && { WT="$CAND"; echo "websiteToken extracted from ${url}"; break; }
-          done
-          [ -n "$WT" ] || { WT="4fd6sg89d7s6"; echo "websiteToken extraction failed; using gofile's long-standing public websiteToken"; }
+          RESP=""
+          try_token () {
+            local WT="$1" R S
+            R=$(curl -sS "https://api.gofile.io/contents/${FOLDER}" -H "X-Website-Token: ${WT}" -H "Referer: https://gofile.io/" 2>/dev/null || true)
+            S=$(jq -r .status <<<"$R" 2>/dev/null || echo error)
+            echo "  header token ${WT}: ${S}"
+            if [ "$S" = "ok" ]; then RESP="$R"; return 0; fi
+            R=$(curl -sS "https://api.gofile.io/contents/${FOLDER}?websiteToken=${WT}" -H "Referer: https://gofile.io/" 2>/dev/null || true)
+            S=$(jq -r .status <<<"$R" 2>/dev/null || echo error)
+            echo "  param token ${WT}: ${S}"
+            if [ "$S" = "ok" ]; then RESP="$R"; return 0; fi
+            return 1
+          }
 
-          AN2=$(curl -sS "https://api.gofile.io/contents/${FOLDER}" -H "X-Website-Token: ${WT}" -H "Referer: https://gofile.io/")
-          ST=$(jq -r .status <<<"$AN2")
-          echo "anonymous header status: ${ST}"
-          if [ "$ST" != "ok" ]; then
-            AN2=$(curl -sS "https://api.gofile.io/contents/${FOLDER}?websiteToken=${WT}" -H "Referer: https://gofile.io/")
-            ST=$(jq -r .status <<<"$AN2")
-            echo "anonymous param status: ${ST}"
+          # gofile's long-standing public anonymous websiteToken first
+          if ! try_token "4fd6sg89d7s6"; then
+            echo "known public token failed; scraping frontend bundle for current websiteToken"
+            WT2=""
+            for url in $(curl -s https://gofile.io/ | grep -oE '"[^"]*\.js[^"]*"' | tr -d '"' | sort -u || true); do
+              case "$url" in /*) url="https://gofile.io${url}";; http*) :;; *) continue;; esac
+              CAND=$(curl -s "$url" | grep -oE 'websiteToken["'"'"']?[:=]["'"'"'][A-Za-z0-9]+' | grep -oE '[A-Za-z0-9]+$' | head -1 || true)
+              if [ -n "$CAND" ]; then WT2="$CAND"; echo "extracted websiteToken from ${url}"; break; fi
+            done
+            if [ -n "$WT2" ]; then try_token "$WT2" || true; fi
           fi
-          [ "$ST" = "ok" ] || { echo "::error::anonymous listing failed: ${ST}"; exit 1; }
-          LISTING=$(jq -r '.data.children[] | "\(.name) | \(.size) bytes | md5 \(.md5 // "n/a") | type \(.type)"' <<<"$AN2")
+          if [ -z "$RESP" ]; then echo "::error::anonymous listing failed with every token"; exit 1; fi
+
+          LISTING=$(jq -r '.data.children[] | "\(.name) | \(.size) bytes | md5 \(.md5 // "n/a") | type \(.type)"' <<<"$RESP" 2>/dev/null || true)
           echo "anonymous visitor sees:"
           echo "$LISTING"
-          grep -q '\.apk' <<<"$LISTING" || { echo "::error::apk not visible anonymously"; exit 1; }
+          echo "$LISTING" | grep -q '\.apk' || { echo "::error::apk not visible anonymously"; exit 1; }
 
           {
             echo "### Melody Debug APK (verified public)"
