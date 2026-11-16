@@ -1,8 +1,9 @@
 name: Redeliver Debug APK
 
-# One-shot recovery workflow: takes the already-built debug APK artifact from a
-# previous run, uploads it to Gofile from an owner account, sets the folder
-# public, and verifies a non-owner can list it. No rebuild.
+# Recovery workflow: takes the already-built debug APK artifact from a previous
+# run, uploads it to Gofile from an owner account, sets the folder public, and
+# verifies a non-owner can list it. No rebuild.
+# If folder_id is given, skips download/upload and only verifies that folder.
 
 on:
   workflow_dispatch:
@@ -11,6 +12,10 @@ on:
         description: 'Source run ID whose app-universal-foss-debug artifact to redeliver'
         required: true
         default: '43795337795'
+      folder_id:
+        description: 'Existing Gofile folder id to verify only (skips upload)'
+        required: false
+        default: ''
 
 permissions:
   actions: read
@@ -22,6 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download APK artifact from source run
+        if: ${{ github.event.inputs.folder_id == '' }}
         uses: actions/download-artifact@v4
         with:
           name: app-universal-foss-debug
@@ -31,6 +37,7 @@ jobs:
           path: apk
 
       - name: Upload to Gofile and publish folder
+        if: ${{ github.event.inputs.folder_id == '' }}
         run: |
           set -euo pipefail
           APK=$(ls apk/*.apk | head -1)
@@ -42,7 +49,6 @@ jobs:
           TOKEN=$(jq -r '.data.token // empty' <<<"$ACCT")
           [ -n "$TOKEN" ] || { echo "::error::could not create owner account"; exit 1; }
           echo "::add-mask::${TOKEN}"
-          echo "TOKEN=${TOKEN}" >> "$GITHUB_ENV"
 
           SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
           RESP=$(curl -sS --retry 3 -H "Authorization: Bearer ${TOKEN}" \
@@ -51,8 +57,8 @@ jobs:
           PAGE=$(jq -r '.data.downloadPage' <<<"$RESP")
           FOLDER=$(jq -r '.data.parentFolder' <<<"$RESP")
           RMD5=$(jq -r '.data.md5 // empty' <<<"$RESP")
-          echo "page=${PAGE}" >> "$GITHUB_ENV"
-          echo "folder=${FOLDER}" >> "$GITHUB_ENV"
+          echo "UPLOADED_PAGE=${PAGE}" >> "$GITHUB_ENV"
+          echo "UPLOADED_FOLDER=${FOLDER}" >> "$GITHUB_ENV"
           echo "downloadPage: ${PAGE}"
           echo "remote md5: ${RMD5}"
           [ -z "$RMD5" ] || [ "$RMD5" = "$LOCAL_MD5" ] || { echo "::error::md5 mismatch"; exit 1; }
@@ -67,6 +73,17 @@ jobs:
       - name: Verify non-owner access
         run: |
           set -euo pipefail
+          FOLDER="${{ github.event.inputs.folder_id }}"
+          PAGE=""
+          if [ -z "$FOLDER" ]; then
+            FOLDER="${UPLOADED_FOLDER:-}"
+            PAGE="${UPLOADED_PAGE:-}"
+          else
+            PAGE="https://gofile.io/d/${FOLDER}"
+          fi
+          [ -n "$FOLDER" ] || { echo "::error::no folder to verify"; exit 1; }
+          echo "verifying folder: ${FOLDER}"
+
           # independent non-owner account must be able to list the folder now
           ACCT2=$(curl -sS -X POST https://api.gofile.io/accounts)
           T2=$(jq -r '.data.token // empty' <<<"$ACCT2")
