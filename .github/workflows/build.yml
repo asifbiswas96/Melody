@@ -47,8 +47,10 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-      - name: Apply Melody Phase 1 patch
-        run: unzip -o 1-melody_phase1_patch.zip -d .
+      - name: Apply Melody UI patches
+        run: |
+          unzip -o 1-melody_phase1_patch.zip -d .
+          if [ -f 2-melody_phase2_patch.zip ]; then unzip -o 2-melody_phase2_patch.zip -d .; fi
 
       - name: Build Debug APK
         env:
