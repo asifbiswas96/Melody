@@ -52,6 +52,7 @@ jobs:
           unzip -o 1-melody_phase1_patch.zip -d .
           unzip -o 2-melody_phase2_patch.zip -d .
           unzip -o 3-melody_glass_screens.zip -d .
+          unzip -o 4-melody_full_redesign.zip -d .
 
       - name: Build Debug APK
         env:
