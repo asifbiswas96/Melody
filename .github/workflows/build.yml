@@ -51,6 +51,7 @@ jobs:
         run: |
           unzip -o 1-melody_phase1_patch.zip -d .
           unzip -o 2-melody_phase2_patch.zip -d .
+          unzip -o 3-melody_glass_screens.zip -d .
 
       - name: Build Debug APK
         env:
@@ -70,16 +71,43 @@ jobs:
           # a debug apk is only for trying the build, after a week it's just eating actions storage
           retention-days: 7
 
-      # Guest upload, no account; the link goes to the owner privately. This is how the APK leaves CI.
-      - name: Upload APK to Gofile
+      # Owner upload to Gofile (public folder) + catbox mirror; both links go to the step summary.
+      - name: Upload APK to Gofile and catbox
         if: success()
         run: |
+          set -uo pipefail
           APK=$(ls app/build/outputs/apk/universalFoss/debug/*.apk | head -1)
-          SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
-          echo "gofile server: $SERVER"
-          RESP=$(curl -sS --retry 3 -F "file=@${APK}" "https://${SERVER}.gofile.io/contents/uploadfile")
-          echo "$RESP" | jq '{status, downloadPage: .data.downloadPage, name: .data.name, size: .data.size, md5: .data.md5}'
-          PAGE=$(echo "$RESP" | jq -r '.data.downloadPage // empty')
-          echo "### Melody Debug APK" >> "$GITHUB_STEP_SUMMARY"
-          echo "Gofile: $PAGE" >> "$GITHUB_STEP_SUMMARY"
-          test -n "$PAGE"
+          MD5=$(md5sum "$APK" | awk '{print $1}')
+          echo "apk md5: $MD5"
+
+          # gofile owner account; token stays in this shell, masked
+          ACCT=$(curl -sS -X POST https://api.gofile.io/accounts)
+          TOKEN=$(jq -r '.data.token // empty' <<<"$ACCT")
+          if [ -n "$TOKEN" ]; then
+            echo "::add-mask::${TOKEN}"
+            SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
+            RESP=$(curl -sS --retry 3 -H "Authorization: Bearer ${TOKEN}" -F "file=@${APK}" "https://${SERVER}.gofile.io/contents/uploadfile")
+            PAGE=$(jq -r '.data.downloadPage // empty' <<<"$RESP")
+            FOLDER=$(jq -r '.data.parentFolder // empty' <<<"$RESP")
+            RMD5=$(jq -r '.data.md5 // empty' <<<"$RESP")
+            echo "gofile page: $PAGE (md5 $RMD5)"
+            if [ -n "$FOLDER" ]; then
+              UPD=$(curl -sS -X PUT "https://api.gofile.io/contents/${FOLDER}/update" -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -d '{"attribute":"public","attributeValue":"true"}')
+              echo "gofile set public: $(jq -r .status <<<"$UPD")"
+            fi
+          else
+            PAGE=""
+            echo "gofile account creation failed"
+          fi
+
+          # catbox mirror (direct link, anonymously checkable)
+          CB=$(curl -sS --retry 3 -F "reqtype=fileupload" -F "fileToUpload=@${APK}" https://catbox.moe/user/api.php || true)
+          echo "catbox: $CB"
+
+          {
+            echo "### Melody Debug APK"
+            echo "Gofile: ${PAGE:-unavailable}"
+            echo "Catbox: ${CB:-unavailable}"
+            echo "md5: $MD5"
+          } >> "$GITHUB_STEP_SUMMARY"
+          [ -n "$PAGE" ] || [ -n "$CB" ]
