@@ -122,6 +122,7 @@ jobs:
         uses: actions/download-artifact@v5
         with:
           name: app-universal-foss-debug
+          path: apkdir
 
       - name: Enable KVM
         run: |
@@ -141,8 +142,12 @@ jobs:
           disable-animations: true
           script: |
             set -x
-            cd "$GITHUB_WORKSPACE" || true
-            APK=$(find "$GITHUB_WORKSPACE" -name '*.apk' | head -1)
+            pwd
+            env | grep -i github_work || true
+            ls -la . || true
+            ls -la apkdir || true
+            find /home/runner/work -name '*.apk' 2>/dev/null || true
+            APK=$(find /home/runner/work -name '*.apk' 2>/dev/null | head -1)
             echo "APK: $APK"
             adb install -r "$APK"
 
