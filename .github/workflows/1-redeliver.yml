@@ -1,0 +1,103 @@
+name: Redeliver Debug APK
+
+# One-shot recovery workflow: takes the already-built debug APK artifact from a
+# previous run, uploads it to Gofile from an owner account, sets the folder
+# public, and verifies a non-owner can list it. No rebuild.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Source run ID whose app-universal-foss-debug artifact to redeliver'
+        required: true
+        default: '43795337795'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  redeliver:
+    name: Rehost APK with verified public link
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK artifact from source run
+        uses: actions/download-artifact@v4
+        with:
+          name: app-universal-foss-debug
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: apk
+
+      - name: Upload to Gofile and publish folder
+        run: |
+          set -euo pipefail
+          APK=$(ls apk/*.apk | head -1)
+          LOCAL_MD5=$(md5sum "$APK" | awk '{print $1}')
+          echo "local apk: $(basename "$APK") md5=$LOCAL_MD5"
+
+          # owner account for this upload; token stays in this shell, masked, never printed
+          ACCT=$(curl -sS -X POST https://api.gofile.io/accounts)
+          TOKEN=$(jq -r '.data.token // empty' <<<"$ACCT")
+          [ -n "$TOKEN" ] || { echo "::error::could not create owner account"; exit 1; }
+          echo "::add-mask::${TOKEN}"
+          echo "TOKEN=${TOKEN}" >> "$GITHUB_ENV"
+
+          SERVER=$(curl -s https://api.gofile.io/servers | jq -r '.data.servers[0].name')
+          RESP=$(curl -sS --retry 3 -H "Authorization: Bearer ${TOKEN}" \
+                 -F "file=@${APK}" "https://${SERVER}.gofile.io/contents/uploadfile")
+          [ "$(jq -r .status <<<"$RESP")" = "ok" ] || { echo "::error::upload failed"; exit 1; }
+          PAGE=$(jq -r '.data.downloadPage' <<<"$RESP")
+          FOLDER=$(jq -r '.data.parentFolder' <<<"$RESP")
+          RMD5=$(jq -r '.data.md5 // empty' <<<"$RESP")
+          echo "page=${PAGE}" >> "$GITHUB_ENV"
+          echo "folder=${FOLDER}" >> "$GITHUB_ENV"
+          echo "downloadPage: ${PAGE}"
+          echo "remote md5: ${RMD5}"
+          [ -z "$RMD5" ] || [ "$RMD5" = "$LOCAL_MD5" ] || { echo "::error::md5 mismatch"; exit 1; }
+
+          UPD=$(curl -sS -X PUT "https://api.gofile.io/contents/${FOLDER}/update" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"attribute":"public","attributeValue":"true"}')
+          [ "$(jq -r .status <<<"$UPD")" = "ok" ] || { echo "::error::set-public failed"; jq -r .status <<<"$UPD"; exit 1; }
+          echo "folder set public: ok"
+
+      - name: Verify non-owner access
+        run: |
+          set -euo pipefail
+          # independent non-owner account must be able to list the folder now
+          ACCT2=$(curl -sS -X POST https://api.gofile.io/accounts)
+          T2=$(jq -r '.data.token // empty' <<<"$ACCT2")
+          [ -n "$T2" ] || { echo "::error::could not create verifier account"; exit 1; }
+          echo "::add-mask::${T2}"
+          ANON=$(curl -sS "https://api.gofile.io/contents/${FOLDER}" -H "Authorization: Bearer ${T2}")
+          ST=$(jq -r .status <<<"$ANON")
+          echo "non-owner list status: ${ST}"
+          [ "$ST" = "ok" ] || { echo "::error::non-owner cannot list folder"; exit 1; }
+          LISTING=$(jq -r '.data.children[] | "\(.name) | \(.size) bytes | md5 \(.md5 // "n/a") | type \(.type)"' <<<"$ANON")
+          echo "non-owner sees:"
+          echo "$LISTING"
+          grep -q '\.apk' <<<"$LISTING" || { echo "::error::apk not visible to non-owner"; exit 1; }
+
+          # also try the truly anonymous route (no account token) via the site's own public websiteToken
+          WT=""
+          for js in $(curl -s https://gofile.io/ | grep -oE '/dist/js/[^"]+\.js' | sort -u); do
+            CAND=$(curl -s "https://gofile.io${js}" | grep -oE 'websiteToken["'"'"']?[:=]["'"'"'][A-Za-z0-9]+' | grep -oE '[A-Za-z0-9]+$' | head -1)
+            [ -n "$CAND" ] && { WT="$CAND"; break; }
+          done
+          if [ -n "$WT" ]; then
+            echo "::add-mask::${WT}"
+            AN2=$(curl -sS "https://api.gofile.io/contents/${FOLDER}" -H "X-Website-Token: ${WT}")
+            echo "anonymous (websiteToken) status: $(jq -r .status <<<"$AN2")"
+          else
+            echo "websiteToken not found in frontend bundle; skipped pure-anonymous check (non-owner check above already passed)"
+          fi
+
+          {
+            echo "### Melody Debug APK (verified public)"
+            echo "Gofile: ${PAGE}"
+            echo "Non-owner listing verified: yes"
+            echo "${LISTING}"
+          } >> "$GITHUB_STEP_SUMMARY"
