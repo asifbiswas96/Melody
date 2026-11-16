@@ -141,7 +141,9 @@ jobs:
           disable-animations: true
           script: |
             set -x
-            APK=$(ls *.apk | head -1)
+            cd "$GITHUB_WORKSPACE" || true
+            APK=$(find "$GITHUB_WORKSPACE" -name '*.apk' | head -1)
+            echo "APK: $APK"
             adb install -r "$APK"
 
             # 20s tone with embedded cover art so Now Playing has art
@@ -198,6 +200,7 @@ jobs:
 
             echo "### Screenshots" >> $GITHUB_STEP_SUMMARY
             for f in shots/*.png; do
-              L=$(curl -sS --retry 3 -F "reqtype=fileupload" -F "fileToUpload=@$f" https://catbox.moe/user/api.php || true)
+              R=$(curl -sS --retry 3 -F "file=@$f" https://tmpfiles.org/api/v1/upload || true)
+              L=$(echo "$R" | jq -r '.data.url // "UPLOAD_FAILED"')
               echo "$f -> $L" | tee -a $GITHUB_STEP_SUMMARY
             done
