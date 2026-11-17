@@ -87,16 +87,25 @@ private fun DrawScope.drawGem(c: Color, glow: Float) {
         radius = w * 0.38f,
         center = Offset(w * 0.5f, h * 0.5f),
     )
-    // the glossy corner arc, bottom-right
-    val r = w * 0.20f
+    // inset edge glow: the frosted rim of the approved tile (accent light collects at the edges, centre calmer)
+    drawRect(
+        Brush.radialGradient(
+            0.50f to Color.Transparent,
+            1f to c.copy(alpha = 0.42f),
+            center = Offset(w * 0.5f, h * 0.5f),
+            radius = w * 0.74f,
+        )
+    )
+    // the glossy corner arc, bottom-right: hugs the corner, soft grey-white, small so it never crosses the glyph
+    val r = w * 0.15f
     drawArc(
-        color = Color.White.copy(alpha = 0.70f),
-        startAngle = 0f,
-        sweepAngle = 90f,
+        color = Color.White.copy(alpha = 0.50f),
+        startAngle = 5f,
+        sweepAngle = 80f,
         useCenter = false,
-        topLeft = Offset(w * 0.63f - r, h * 0.63f - r),
+        topLeft = Offset(w * 0.74f - r, h * 0.74f - r),
         size = Size(r * 2f, r * 2f),
-        style = Stroke(width = w * 0.05f, cap = StrokeCap.Round),
+        style = Stroke(width = w * 0.035f, cap = StrokeCap.Round),
     )
 }
 
