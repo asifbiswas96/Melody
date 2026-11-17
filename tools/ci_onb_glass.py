@@ -159,3 +159,15 @@ soft('screens/donate/DonateSheet.kt', [
 soft('screens/donate/SupportSheet.kt', [('useful for us if you support the developer', 'useful for the upstream Mochy Music developers if you support them')])
 soft('screens/update/UpdateSheet.kt', [('"Help us!"', '"Support upstream"')])
 print('upstream labels done')
+# v19: Audio Lab page: navy glow backdrop (was flat 141416) and glass groups
+soft('screens/audiolab/AudioLabPage.kt', [
+    ('.background(PageBackdrop)\n            .dotGrid()', '.background(Color(0xFF03050F))\n            .melodyGlowBackground()\n            .dotGrid()'),
+    ('.background(Color(0xFF1A1A1C))\n            .padding(12.dp)', '.background(Color(0x9E101A30))\n            .padding(12.dp)'),
+])
+print('audiolab glow done')
+_p = B + 'screens/audiolab/AudioLabPage.kt'
+_s = open(_p).read()
+assert 'melodyGlowBackground()' in _s
+if 'ui.component.melodyGlowBackground' not in _s:
+    _s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.melodyGlowBackground\nimport ', 1)
+open(_p, 'w').write(_s)
