@@ -2,6 +2,8 @@
 # Melody CI: install the debug APK on the emulator, seed a test track, capture
 # Home / Genre / Search / Settings / Library / mini player / Now Playing /
 # dialog screenshots, upload to tmpfiles.
+# v6: dismiss the upstream "Update available" changelog sheet (shown when
+# upstream ships a newer version, e.g. 8.4.2); it blocks every anchor.
 # v5: independent flows with a full app relaunch (force-stop + monkey) between
 # them, per capture-QA directive; Now Playing is captured only after the
 # immersive "GOT IT" tutorial is dismissed and unique player strings are
@@ -150,6 +152,22 @@ scroll_to_end() {
   done
   echo 'SCROLL END NOT REACHED within 8 swipes'
 }
+# Dismiss the upstream update changelog sheet: "Update available! / What
+# changed on X.Y.Z" appears on launch whenever upstream has a newer version.
+# Prefer a text button if one exists; BACK closes the bottom sheet otherwise.
+dismiss_update_sheet() {
+  for j in 1 2 3; do
+    dump_strings >/dev/null 2>&1
+    if vis_have_any "Update available" "What changed on"; then
+      echo "UPDATE SHEET: dismissing (attempt $j)"
+      tap_text "Later" || tap_text "Not now" || tap_text "Maybe later" || adb shell input keyevent 4
+      sleep 2
+    else
+      return 0
+    fi
+  done
+  return 0
+}
 # Full relaunch for independent flows. Assumes onboarding already completed
 # (v5 runs onboarding once after first launch, before any relaunch).
 relaunch() {
@@ -159,6 +177,7 @@ relaunch() {
   sleep 8
   for i in $(seq 1 8); do
     dump_strings >/dev/null 2>&1
+    if vis_have_any "Update available" "What changed on"; then dismiss_update_sheet; dump_strings >/dev/null 2>&1; fi
     if vis_have_any "For You" "Try something new" "Home"; then echo "RELAUNCH OK ($i)"; return 0; fi
     sleep 2
   done
@@ -171,6 +190,11 @@ adb shell monkey -p com.neurobyte.melody.debug -c android.intent.category.LAUNCH
 sleep 20
 for i in $(seq 1 22); do
   tap_text "For You" && break
+  dump_strings >/dev/null 2>&1
+  if vis_have_any "Update available" "What changed on"; then dismiss_update_sheet; dump_strings >/dev/null 2>&1; fi
+  # Home already visible (sheet dismissed, no onboarding): stop before the
+  # fallback center tap can open something on the home screen.
+  if vis_have_any "For You" "Try something new" "Home"; then echo "ONBOARDING SKIP: home anchors visible ($i)"; break; fi
   # Profile page: Next stays disabled until a username is typed. Exact-only match on
   # the placeholder so we type once; then drop the keyboard so Next is not hidden
   # behind the IME.
