@@ -457,6 +457,12 @@ if vis_have "melody glass test"; then
       adb shell input swipe 540 1900 540 900 300
       sleep 1
       shot 07b_dialog_scrolled
+      adb shell input swipe 540 1900 540 700 300
+      sleep 1
+      adb shell input swipe 540 1900 540 700 300
+      sleep 2
+      shot 07c_dialog_end
+      echo 'DIALOG END SHOT: swiped to the true end of the song menu list'
       echo 'DIALOG VERIFIED: long-press opened the song action sheet'
     else
       echo 'DIALOG UNVERIFIED: long-press showed no action sheet - frame not emitted'
