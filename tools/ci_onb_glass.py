@@ -210,3 +210,30 @@ _rep('''                .background(Color(0xFF0E1A38).copy(alpha = 0.62f))
 _s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.GemSky\nimport com.mochyy.mochymusic.ui.component.GemTeal\nimport com.mochyy.mochymusic.ui.component.glassGem\nimport ', 1)
 open(_p, 'w').write(_s)
 print('player gems done')
+
+# v21: player info card as a rich glass card, round side buttons as glass gems
+_p = B + 'player/SongInfoRow.kt'
+_s = open(_p).read()
+_o = """            .background(com.mochyy.mochymusic.ui.component.MelodyGlassTint)
+            .border(
+                1.dp,
+                com.mochyy.mochymusic.ui.component.MelodyGlassEdgeBrush,
+                androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+            )
+            .padding(horizontal = 16.dp, vertical = 6.dp)"""
+assert _s.count(_o) == 1
+_s = _s.replace(_o, """            .glassCard(androidx.compose.foundation.shape.RoundedCornerShape(28.dp))
+            .padding(horizontal = 16.dp, vertical = 10.dp)""")
+_o2 = """                    .clip(CircleShape)
+                    .background(containerColor)
+            ) {
+
+                if (boldIcon) {"""
+assert _s.count(_o2) == 1
+_s = _s.replace(_o2, """                    .glassGem(CircleShape, GemSky, 0.5f)
+            ) {
+
+                if (boldIcon) {""")
+_s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.GemSky\nimport com.mochyy.mochymusic.ui.component.glassCard\nimport com.mochyy.mochymusic.ui.component.glassGem\nimport ', 1)
+open(_p, 'w').write(_s)
+print('song card done')
