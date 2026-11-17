@@ -237,3 +237,29 @@ _s = _s.replace(_o2, """                    .glassGem(CircleShape, GemBlue, 0.5f
 _s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.GemBlue\nimport com.mochyy.mochymusic.ui.component.glassCard\nimport com.mochyy.mochymusic.ui.component.glassGem\nimport ', 1)
 open(_p, 'w').write(_s)
 print('song card done')
+
+# v22: flagship Now Playing transport (the row the player really uses) as 3D glass gems
+_p = B + 'player/flagship/FlagshipTransport.kt'
+_s = open(_p).read()
+_o = """            .size(touch)
+            .graphicsLayer {
+                val s = press()
+                scaleX = s
+                scaleY = s
+                alpha = if (enabled) 1f else 0.36f
+            }
+"""
+assert _s.count(_o) == 1
+_s = _s.replace(_o, _o + "            .padding(5.dp)\n            .glassGem(CircleShape, GemBlue, 0.55f)\n")
+_o = """                    } else Modifier
+                ),
+        ) {
+            if (ended) {"""
+assert _s.count(_o) == 1
+_s = _s.replace(_o, """                    } else Modifier.padding(3.dp).glassGem(CircleShape, GemTeal, 0.75f)
+                ),
+        ) {
+            if (ended) {""")
+_s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.GemBlue\nimport com.mochyy.mochymusic.ui.component.GemTeal\nimport com.mochyy.mochymusic.ui.component.glassGem\nimport ', 1)
+open(_p, 'w').write(_s)
+print('flagship transport done')
