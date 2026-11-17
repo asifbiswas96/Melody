@@ -79,12 +79,14 @@ SUBS = [
 tag = re.compile(r'^(\s*<(?:string|item)\b[^>]*>)(.*?)(</(?:string|item)>\s*)$')
 n_changed = 0
 for f in glob.glob('app/src/main/res/values*/*.xml'):
+    if re.search(r'(styles|themes|attrs|colors|dimens)', os.path.basename(f)):
+        continue
     lines = open(f, encoding='utf-8', errors='surrogateescape').read().split('\n')
     out = []
     ch = False
     for l in lines:
         m = tag.match(l)
-        if m and re.search('mochy', m.group(2), re.I) and not any(k in l for k in KEEP):
+        if m and re.search('mochy', m.group(2), re.I) and not any(k in l for k in KEEP) and not re.match(r'\s*[@?]', m.group(2)):
             t = m.group(2)
             for rx, rep in SUBS:
                 t = rx.sub(rep, t)
