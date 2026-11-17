@@ -321,15 +321,16 @@ _card = """                        letTouchesThroughWhenHidden()
                     .drawBehind {
                         val l = 10.dp.toPx()
                         val w = size.width - l * 2f
-                        val h = size.height + 6.dp.toPx()
+                        val up = controlsDrawShift.toPx() - 6.dp.toPx()
+                        val h = size.height + up + 6.dp.toPx()
                         val r = androidx.compose.ui.geometry.CornerRadius(34.dp.toPx(), 34.dp.toPx())
-                        val tl = androidx.compose.ui.geometry.Offset(l, 0f)
+                        val tl = androidx.compose.ui.geometry.Offset(l, -up)
                         val sz = androidx.compose.ui.geometry.Size(w, h)
                         drawRoundRect(
                             brush = androidx.compose.ui.graphics.Brush.linearGradient(
                                 listOf(Color(0x40FFFFFF), Color(0x33101A38), Color(0x66050A1C)),
-                                start = androidx.compose.ui.geometry.Offset(l, 0f),
-                                end = androidx.compose.ui.geometry.Offset(l + w, h),
+                                start = androidx.compose.ui.geometry.Offset(l, -up),
+                                end = androidx.compose.ui.geometry.Offset(l + w, h - up),
                             ),
                             topLeft = tl, size = sz, cornerRadius = r,
                         )
@@ -337,7 +338,7 @@ _card = """                        letTouchesThroughWhenHidden()
                         drawRoundRect(
                             brush = androidx.compose.ui.graphics.Brush.radialGradient(
                                 listOf(Color(0x33FFFFFF), Color.Transparent),
-                                center = androidx.compose.ui.geometry.Offset(l + w * 0.18f, h * 0.06f),
+                                center = androidx.compose.ui.geometry.Offset(l + w * 0.18f, -up + h * 0.06f),
                                 radius = w * 0.7f,
                             ),
                             topLeft = tl, size = sz, cornerRadius = r,
@@ -346,8 +347,8 @@ _card = """                        letTouchesThroughWhenHidden()
                         drawRoundRect(
                             brush = androidx.compose.ui.graphics.Brush.linearGradient(
                                 listOf(Color(0x80FFFFFF), Color(0x1FFFFFFF), Color(0x666ECDFF)),
-                                start = androidx.compose.ui.geometry.Offset(l, 0f),
-                                end = androidx.compose.ui.geometry.Offset(l + w, h),
+                                start = androidx.compose.ui.geometry.Offset(l, -up),
+                                end = androidx.compose.ui.geometry.Offset(l + w, h - up),
                             ),
                             topLeft = tl, size = sz, cornerRadius = r,
                             style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx()),
