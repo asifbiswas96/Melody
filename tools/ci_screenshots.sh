@@ -191,7 +191,7 @@ scroll_to_end() {
     CUR=$(vis_set)
     if [ "$CUR" = "$PREV" ]; then echo "SCROLL END after $i swipe(s)"; return 0; fi
     PREV="$CUR"
-    adb shell input swipe 540 1900 540 500 >/dev/null 2>&1
+    adb shell input swipe 540 1500 540 500 >/dev/null 2>&1
     sleep 1
   done
   echo 'SCROLL END NOT REACHED within 8 swipes'
@@ -210,7 +210,7 @@ dismiss_update_sheet() {
     fi
     if vis_have_any "no thanks" "Install here" "Open the web" "Update available" "What changed on" "This update includes" "Tv Version" "Floating Lyrics" "Device integration" "Honourable mentions" "Android auto support" "Lanscape" "Quicklook" || ! vis_have_any "For You" "Try something new"; then
       echo "UPDATE SHEET: still present (attempt $j)"
-      adb shell input swipe 540 1900 540 700 400
+      adb shell input swipe 540 1500 540 700 400
       sleep 1
     else
       echo "UPDATE SHEET: gone (attempt $j)"
@@ -458,13 +458,11 @@ if tap_text "profile"; then
     else
       echo 'ABOUT SHEET UNVERIFIED: About app row not tappable'
     fi
-    adb shell input keyevent BACK
-    sleep 2
   else
     echo 'ABOUT UNVERIFIED: About not tappable from profile'
   fi
   # Settings row can sit half-hidden at the page bottom; scroll it into view first.
-  adb shell input swipe 540 1900 540 900 >/dev/null 2>&1
+  adb shell input swipe 540 1500 540 900 >/dev/null 2>&1
   sleep 1
   dump_strings || true
   if tap_text "Open settings"; then
@@ -519,10 +517,10 @@ relaunch
 dump_strings || true
 sleep 10
 shot 01c_home_online
-adb shell input swipe 540 1900 540 700 400
+adb shell input swipe 540 1500 540 700 400
 sleep 2
 shot 01d_home_scrolled
-adb shell input swipe 540 700 540 1900 400
+adb shell input swipe 540 700 540 1500 400
 sleep 1
 if tap_text "Try something new"; then
   sleep 4
@@ -534,6 +532,14 @@ if tap_text "Try something new"; then
     dump_strings || true
     shot 08b_genre_bottom
     echo 'GENRE BOTTOM SHOT: true scroll end - verify last row clears the nav bar'
+    # open a card from the genre page to reach the shared playlist detail page
+    adb shell input swipe 540 600 540 1700 300
+    sleep 2
+    dump_strings || true
+    adb shell input tap 540 1100
+    sleep 4
+    dump_strings || true
+    shot 08c_after_card
   else
     echo 'GENRE UNVERIFIED: no detail strings after Home card tap'
   fi
@@ -560,7 +566,7 @@ fi
 relaunch
 tap_exact "Search" || tap_text "Search" || true
 sleep 3
-adb shell input tap 540 984
+tap_text "Search for tracks" || adb shell input tap 440 400
 sleep 1
 adb shell input text lofi
 adb shell input keyevent 66
