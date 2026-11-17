@@ -413,3 +413,13 @@ assert _s.count(_o) == 1
 _s = _s.replace(_o, _o + "                    .offset(y = (-40).dp)\n")
 open(_p, 'w').write(_s)
 print('v27 tighter player card done')
+
+# v29: song/album/playlist menus: the last row must clear the system navigation buttons
+for _f in ['SongMenu','AlbumMenu','PlaylistMenu','SelectionSongsMenu','YouTubeSongMenu','YouTubeAlbumMenu','YouTubePlaylistMenu','YouTubeArtistMenu']:
+    _p = B + 'menu/%s.kt' % _f
+    _s = open(_p).read()
+    _o = 'bottom = 8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(),'
+    assert _s.count(_o) == 1, (_f, _s.count(_o))
+    _s = _s.replace(_o, 'bottom = 8.dp + maxOf(WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(), 48.dp),')
+    open(_p, 'w').write(_s)
+print('v29 menu bottom clearance done')
