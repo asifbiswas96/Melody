@@ -37,7 +37,30 @@ adb install -r "$(find /home/runner/work -name '*.apk' 2>/dev/null | head -1)"
 adb shell pm grant com.neurobyte.melody.debug android.permission.READ_MEDIA_AUDIO || true
 adb shell pm grant com.neurobyte.melody.debug android.permission.READ_EXTERNAL_STORAGE || true
 
-adb push tools/glass_test.mp3 /sdcard/Music/glass_test.mp3
+# v24: clearly-labelled TEST content only: 3 generated tones with generated gradient cover art, so the
+# player has real artwork depth and a multi-track queue (enabled skip controls). No private media.
+mkdir -p /tmp/seed
+if ! command -v ffmpeg >/dev/null 2>&1; then sudo apt-get install -y ffmpeg >/dev/null 2>&1 || true; fi
+SEEDED=0
+if command -v ffmpeg >/dev/null 2>&1; then
+  for spec in "1|Melody Glass Test|Glass Test|330|0x6ECDFF|0xB07CFF" "2|Melody Test Track Two|Test Artist B|440|0x35D6C0|0x2F8BFF" "3|Melody Test Track Three|Test Artist C|550|0xFF8A3D|0xB07CFF"; do
+    IFS='|' read n title artist freq ca cb <<< "$spec"
+    ffmpeg -y -loglevel error -f lavfi -i "gradients=s=600x600:c0=$ca:c1=$cb:c2=0x03050F:x0=0:y0=0:x1=600:y1=600:d=1:n=3" -frames:v 1 /tmp/seed/art$n.png || continue
+    ffmpeg -y -loglevel error -f lavfi -i "sine=frequency=$freq:duration=20" -i /tmp/seed/art$n.png -map 0:a -map 1:v -c:a libmp3lame -b:a 64k -c:v mjpeg -id3v2_version 3 -disposition:v attached_pic -metadata title="$title" -metadata artist="$artist" -metadata album="Melody test content" /tmp/seed/test$n.mp3 && SEEDED=$((SEEDED+1))
+  done
+fi
+echo "SEED TRACKS GENERATED: $SEEDED"
+if [ "$SEEDED" = 3 ]; then
+  adb push /tmp/seed/test1.mp3 /sdcard/Music/glass_test.mp3
+  adb push /tmp/seed/test2.mp3 /sdcard/Music/test_two.mp3
+  adb push /tmp/seed/test3.mp3 /sdcard/Music/test_three.mp3
+  for pair in "test_two|Melody Test Track Two" "test_three|Melody Test Track Three"; do
+    f=${pair%%|*}; t=${pair#*|}
+    adb shell "content insert --uri content://media/external_primary/audio/media --bind _data:s:/sdcard/Music/$f.mp3 --bind 'title:s:$t' --bind mime_type:s:audio/mpeg --bind is_music:i:1" || true
+  done
+else
+  adb push tools/glass_test.mp3 /sdcard/Music/glass_test.mp3
+fi
 # API 29+: the scan broadcast is ignored; insert the track into MediaStore directly.
 adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:///sdcard/Music/glass_test.mp3 || true
 # adb shell drops argument quoting, so quote the whole device-side command
