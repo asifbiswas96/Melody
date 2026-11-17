@@ -161,7 +161,7 @@ soft('screens/update/UpdateSheet.kt', [('"Help us!"', '"Support upstream"')])
 print('upstream labels done')
 # v19: Audio Lab page: navy glow backdrop (was flat 141416) and glass groups
 soft('screens/audiolab/AudioLabPage.kt', [
-    ('.background(PageBackdrop)\n            .dotGrid()', '.background(Color(0xFF03050F))\n            .melodyGlowBackground()\n            .dotGrid()'),
+    ('.background(PageBackdrop)\n            .dotGrid()', '.background(Color(0x4D101A30))\n            .dotGrid()'),
     ('.background(Color(0xFF1A1A1C))\n            .padding(12.dp)', '.background(Color(0x9E101A30))\n            .padding(12.dp)'),
 ])
 print('audiolab glow done')
