@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# v19: scroll-then-tap sub pages with destination anchors; Storage end shot; empty-prefs fallback.
 # v18: Profile scrolled 3x so Open settings clears the miniplayer; Home genre row tapped without a swipe.
 # Melody CI: install the debug APK on the emulator, seed a test track, capture
 # Home / Genre / Search / Settings / Library / mini player / Now Playing /
@@ -247,7 +248,7 @@ enable_online_no_sheet() {
   sleep 1
   PKG=com.neurobyte.melody.debug
   PF=/data/data/$PKG/files/datastore/settings.preferences_pb
-  adb pull $PF /tmp/prefs.bin || echo 'PREF PULL FAIL'
+  adb pull $PF /tmp/prefs.bin || { echo 'PREF PULL FAIL (using empty base)'; : > /tmp/prefs.bin; }
   printf '\x0a\x16\x0a\x10hideUpdateNotice\x12\x02\x08\x01' > /tmp/hide.bin
   cat /tmp/prefs.bin /tmp/hide.bin > /tmp/prefs_new.bin
   adb push /tmp/prefs_new.bin $PF
@@ -442,6 +443,52 @@ fi
 echo "### Screenshots (player phase)" >> "$GITHUB_STEP_SUMMARY"
 upload_shots
 
+tap_clear() {
+  # scroll until the target row's center is above the miniplayer/nav zone (y<=1750), then tap it
+  for _k in 1 2 3 4 5 6; do
+    refresh || return 1
+    XY=$(python3 /tmp/tap.py "$1" visible) || { if [ "$_k" -ge 3 ]; then adb shell input swipe 540 800 540 1500 >/dev/null 2>&1; else adb shell input swipe 540 1500 540 800 >/dev/null 2>&1; fi; sleep 1; continue; }
+    Y=${XY##* }
+    if [ "$Y" -le 1750 ]; then adb shell input tap $XY; return 0; fi
+    adb shell input swipe 540 1500 540 800 >/dev/null 2>&1
+    sleep 1
+  done
+  return 1
+}
+sub_anchor() {
+  case "$1" in
+    "Audio Lab") echo "equalizer";;
+    "App behaviour") echo "larp";;
+    "Customisation") echo "customize";;
+    "Storage") echo "overall";;
+    "Integrations") echo "integrations";;
+    "Device integration") echo "device integration";;
+    "Modules") echo "modules";;
+  esac
+}
+sub_visit() {
+  sp="$1"
+  if tap_clear "$sp"; then
+    sleep 3
+    dump_strings || true
+    if vis_have_any "$(sub_anchor "$sp")"; then
+      shot "06s_$(echo $sp | tr -d ' ')"
+      echo "SUB VERIFIED: $sp destination anchor present"
+      if [ "$sp" = "Storage" ]; then
+        scroll_to_end
+        dump_strings || true
+        shot 06s_Storage_end
+        echo 'STORAGE END SHOT: verify last row clears mini player and nav'
+      fi
+    else
+      echo "SUB NAV FAIL: $sp opened something else - frame not emitted"
+    fi
+    adb shell input keyevent BACK
+    sleep 2
+  else
+    echo "SETTINGS SUB UNVERIFIED: $sp not reachable above overlays"
+  fi
+}
 # --- Flow 06: Settings via profile -------------------------------------------
 relaunch
 if tap_text "profile"; then
@@ -476,28 +523,14 @@ if tap_text "profile"; then
       shot 06_settings
       echo 'SETTINGS VERIFIED: unique settings body strings present'
       for sp in "Audio Lab" "App behaviour" "Customisation" "Storage" "Integrations"; do
-        if tap_text_vis "$sp"; then
-          sleep 3
-          shot "06s_$(echo $sp | tr -d ' ')"
-          adb shell input keyevent BACK
-          sleep 2
-        else
-          echo "SETTINGS SUB UNVERIFIED: $sp not tappable"
-        fi
+        sub_visit "$sp"
       done
       scroll_to_end
       dump_strings || true
       shot 06b_settings_bottom
       echo 'SETTINGS BOTTOM SHOT: true scroll end - verify last rows clear both navs'
       for sp in "Device integration" "Modules"; do
-        if tap_text_vis "$sp"; then
-          sleep 3
-          shot "06s_$(echo $sp | tr -d ' ')"
-          adb shell input keyevent BACK
-          sleep 2
-        else
-          echo "SETTINGS SUB UNVERIFIED: $sp not tappable"
-        fi
+        sub_visit "$sp"
       done
     else
       echo 'NAV FAIL: Settings screen body not detected - frame not emitted'
