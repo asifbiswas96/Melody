@@ -407,7 +407,7 @@ private fun TabIcons(
     iconSize: androidx.compose.ui.unit.Dp,
     lit: () -> Float,
 ) {
-    Box(contentAlignment = Alignment.Center) {
+    GlassIconTile(size = 34.dp, glow = 0.35f) {
         Icon(
             painter = unlitIcon,
             contentDescription = stringResource(screen.titleId),
