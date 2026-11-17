@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# v18: Profile scrolled 3x so Open settings clears the miniplayer; Home genre row tapped without a swipe.
 # Melody CI: install the debug APK on the emulator, seed a test track, capture
 # Home / Genre / Search / Settings / Library / mini player / Now Playing /
 # dialog screenshots, upload to tmpfiles.
@@ -466,8 +467,7 @@ if tap_text "profile"; then
     echo 'ABOUT UNVERIFIED: About not tappable from profile'
   fi
   # Settings row can sit half-hidden at the page bottom; scroll it into view first.
-  adb shell input swipe 540 1500 540 900 >/dev/null 2>&1
-  sleep 1
+  for _i in 1 2 3; do adb shell input swipe 540 1500 540 700 >/dev/null 2>&1; sleep 1; done
   dump_strings || true
   if tap_text "Open settings"; then
     sleep 3
@@ -521,9 +521,6 @@ relaunch
 dump_strings || true
 sleep 10
 shot 01c_home_online
-adb shell input swipe 540 1500 540 700 400
-sleep 2
-shot 01d_home_scrolled
 dump_strings || true
 if tap_text "Try something new" || tap_text "Folk" || tap_text "Bollywood" || tap_text "Metal"; then
   sleep 4
