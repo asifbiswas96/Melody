@@ -393,8 +393,9 @@ if vis_have "melody glass test"; then
       if vis_have "got it"; then
         tap_text "Got it" || tap_text "GOT IT" || true
         sleep 2
-        adb shell input swipe 540 700 540 1900 >/dev/null 2>&1
-        sleep 2
+        shot 04c_nowplaying_clean
+        sleep 4
+        shot 04d_nowplaying_later
         dump_strings || true
       fi
       # Assert the real player with unique strings inside an 8s window; emit
