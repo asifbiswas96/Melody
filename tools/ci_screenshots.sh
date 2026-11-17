@@ -458,6 +458,10 @@ if tap_text "profile"; then
     else
       echo 'ABOUT SHEET UNVERIFIED: About app row not tappable'
     fi
+    adb shell input keyevent BACK
+    sleep 2
+    adb shell input swipe 540 1100 540 1500 200
+    sleep 1
   else
     echo 'ABOUT UNVERIFIED: About not tappable from profile'
   fi
@@ -520,9 +524,8 @@ shot 01c_home_online
 adb shell input swipe 540 1500 540 700 400
 sleep 2
 shot 01d_home_scrolled
-adb shell input swipe 540 700 540 1500 400
-sleep 1
-if tap_text "Try something new"; then
+dump_strings || true
+if tap_text "Try something new" || tap_text "Folk" || tap_text "Bollywood" || tap_text "Metal"; then
   sleep 4
   dump_strings || true
   if vis_have_any "Add to library" "songs" "genre"; then
