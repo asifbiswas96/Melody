@@ -97,16 +97,13 @@ internal fun MenuItemRow(
                 indication = RemoteFocus,
                 onClick = onClick,
             )
-            .padding(horizontal = 14.dp, vertical = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 9.dp),
     ) {
         if (icon != null) {
             // Menus pass a bare Icon with no tint, which picks up LocalContentColor, so white here
             // makes every menu's icons white without each one asking. A menu that sets its own tint
             // (the red heart) still wins, which is intended.
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(SheetIconSize),
-            ) {
+            GlassIconTile(size = 34.dp) {
                 CompositionLocalProvider(
                     LocalContentColor provides Color.White.copy(alpha = contentAlpha),
                 ) {
