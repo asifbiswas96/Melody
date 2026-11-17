@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# v20: Device integration moved to the very end (emulator died there in v14 and v19); threshold 2000; Modules.
 # v19: scroll-then-tap sub pages with destination anchors; Storage end shot; empty-prefs fallback.
 # v18: Profile scrolled 3x so Open settings clears the miniplayer; Home genre row tapped without a swipe.
 # Melody CI: install the debug APK on the emulator, seed a test track, capture
@@ -444,12 +445,12 @@ echo "### Screenshots (player phase)" >> "$GITHUB_STEP_SUMMARY"
 upload_shots
 
 tap_clear() {
-  # scroll until the target row's center is above the miniplayer/nav zone (y<=1750), then tap it
+  # scroll until the target row's center is above the miniplayer/nav zone (y<=2000), then tap it
   for _k in 1 2 3 4 5 6; do
     refresh || return 1
     XY=$(python3 /tmp/tap.py "$1" visible) || { if [ "$_k" -ge 3 ]; then adb shell input swipe 540 800 540 1500 >/dev/null 2>&1; else adb shell input swipe 540 1500 540 800 >/dev/null 2>&1; fi; sleep 1; continue; }
     Y=${XY##* }
-    if [ "$Y" -le 1750 ]; then adb shell input tap $XY; return 0; fi
+    if [ "$Y" -le 2000 ]; then adb shell input tap $XY; return 0; fi
     adb shell input swipe 540 1500 540 800 >/dev/null 2>&1
     sleep 1
   done
@@ -529,9 +530,7 @@ if tap_text "profile"; then
       dump_strings || true
       shot 06b_settings_bottom
       echo 'SETTINGS BOTTOM SHOT: true scroll end - verify last rows clear both navs'
-      for sp in "Device integration" "Modules"; do
-        sub_visit "$sp"
-      done
+      sub_visit "Modules"
     else
       echo 'NAV FAIL: Settings screen body not detected - frame not emitted'
     fi
@@ -608,4 +607,21 @@ shot 05c_search_results
 
 
 echo "### Screenshots (online phase)" >> "$GITHUB_STEP_SUMMARY"
+upload_shots
+
+# --- v20: Device integration LAST: the emulator process vanished on this page in v14 and v19 ---
+relaunch
+if tap_text "profile"; then
+  sleep 3
+  for _i in 1 2 3; do adb shell input swipe 540 1500 540 700 >/dev/null 2>&1; sleep 1; done
+  if tap_text "Open settings"; then
+    sleep 3
+    scroll_to_end
+    echo 'DEVICE INTEGRATION: attempting last; if the emulator drops after this line it is page-specific'
+    sub_visit "Device integration"
+  else
+    echo 'NAV FAIL: Open settings (device integration phase)'
+  fi
+fi
+echo "### Screenshots (device integration phase)" >> "$GITHUB_STEP_SUMMARY"
 upload_shots
