@@ -420,6 +420,6 @@ for _f in ['SongMenu','AlbumMenu','PlaylistMenu','SelectionSongsMenu','YouTubeSo
     _s = open(_p).read()
     _o = 'bottom = 8.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(),'
     assert _s.count(_o) == 1, (_f, _s.count(_o))
-    _s = _s.replace(_o, 'bottom = 8.dp + maxOf(WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(), 48.dp),')
+    _s = _s.replace(_o, 'bottom = 8.dp + maxOf(WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(), 88.dp),')
     open(_p, 'w').write(_s)
 print('v29 menu bottom clearance done')
