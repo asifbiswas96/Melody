@@ -1,10 +1,11 @@
 // GlassIconTile.kt
 //
-// The soft 3D frosted-glass icon of the Melody glass style. The tile is a puffy translucent gem:
-// a diagonal tint body, a colour glow rising from the bottom edge, a darker lower lip for depth,
-// a soft specular dome plus a small glossy dot top-left and a lit rim. The glyph inside is not a
-// flat white shape: it is drawn as a raised piece with a dark extruded shadow under it and a
-// white-to-tint face, so every icon reads as a small 3D object on the glass.
+// The soft 3D frosted-glass icon of the Melody glass style, built from the tile recipe in the
+// approved MoreFrame reel source (its `.ic` class): a 36%-radius tile with a 165 degree body from
+// the accent to a dark accent, a soft accent highlight at the top-left, a strong accent glow
+// rising from the bottom edge, a white inner top highlight, a thin white rim, an accent drop
+// glow, a small glossy corner arc at the bottom-right and a white glyph with a soft glow and a
+// dark contact shadow. Each icon takes its own accent from the palette.
 
 package com.mochyy.mochymusic.ui.component
 
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,60 +28,87 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 val GemSky = Color(0xFF6ECDFF)
 val GemTeal = Color(0xFF35D6C0)
-val GemViolet = Color(0xFF9A8CFF)
+val GemViolet = Color(0xFFB07CFF)
+val GemBlue = Color(0xFF2F8BFF)
+private val GemOcean = Color(0xFF27A0E6)
+private val GemPalette = listOf(GemBlue, GemViolet, GemTeal, GemOcean)
+private var gemCounter = 0
+
+private fun DrawScope.drawGem(c: Color, glow: Float) {
+    val w = this.size.width
+    val h = this.size.height
+    // body: 165 degree from the accent to a dark accent
+    drawRect(
+        Brush.linearGradient(
+            colors = listOf(c.copy(alpha = 0.70f), lerp(Color(0xFF05060A), c, 0.22f)),
+            start = Offset(w * 0.28f, 0f),
+            end = Offset(w * 0.72f, h),
+        )
+    )
+    // soft accent highlight, top-left
+    drawRect(
+        Brush.radialGradient(
+            colors = listOf(c.copy(alpha = 0.55f), Color.Transparent),
+            center = Offset(w * 0.30f, h * 0.22f),
+            radius = w * 0.62f,
+        )
+    )
+    // accent glow rising from the bottom edge
+    drawRect(
+        Brush.verticalGradient(
+            0.62f to Color.Transparent,
+            1f to c.copy(alpha = (0.75f * (0.5f + glow)).coerceAtMost(0.9f)),
+        )
+    )
+    // white inner highlight along the top
+    drawRect(
+        Brush.verticalGradient(
+            0f to Color.White.copy(alpha = 0.22f),
+            0.16f to Color.Transparent,
+        )
+    )
+    // glow behind the glyph
+    drawCircle(
+        Brush.radialGradient(
+            colors = listOf(Color.White.copy(alpha = 0.22f), Color.Transparent),
+            center = Offset(w * 0.5f, h * 0.5f),
+            radius = w * 0.38f,
+        ),
+        radius = w * 0.38f,
+        center = Offset(w * 0.5f, h * 0.5f),
+    )
+    // the glossy corner arc, bottom-right
+    val r = w * 0.20f
+    drawArc(
+        color = Color.White.copy(alpha = 0.70f),
+        startAngle = 0f,
+        sweepAngle = 90f,
+        useCenter = false,
+        topLeft = Offset(w * 0.63f - r, h * 0.63f - r),
+        size = Size(r * 2f, r * 2f),
+        style = Stroke(width = w * 0.05f, cap = StrokeCap.Round),
+    )
+}
 
 /** The 3D glass body, usable behind any control: round buttons, pills and tiles. */
-fun Modifier.glassGem(shape: Shape, tint: Color = GemSky, glow: Float = 0.6f): Modifier =
+fun Modifier.glassGem(shape: Shape, tint: Color = GemBlue, glow: Float = 0.6f): Modifier =
     this
         .clip(shape)
-        .drawBehind {
-            val w = this.size.width
-            val h = this.size.height
-            drawRect(
-                Brush.linearGradient(
-                    colors = listOf(tint.copy(alpha = 0.50f), Color(0xFF0E1A38).copy(alpha = 0.80f)),
-                    start = Offset(0f, 0f),
-                    end = Offset(w, h),
-                )
-            )
-            drawRect(
-                Brush.radialGradient(
-                    colors = listOf(tint.copy(alpha = 0.60f * glow), Color.Transparent),
-                    center = Offset(w * 0.5f, h * 1.02f),
-                    radius = w * 0.85f,
-                )
-            )
-            drawRect(
-                Brush.verticalGradient(
-                    0.60f to Color.Transparent,
-                    1f to Color.Black.copy(alpha = 0.30f),
-                )
-            )
-            drawOval(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.55f), Color.Transparent),
-                    center = Offset(w * 0.34f, h * 0.20f),
-                    radius = w * 0.40f,
-                ),
-                topLeft = Offset(w * 0.08f, h * 0.04f),
-                size = Size(w * 0.62f, h * 0.36f),
-            )
-            drawCircle(
-                color = Color.White.copy(alpha = 0.85f),
-                radius = w * 0.035f,
-                center = Offset(w * 0.22f, h * 0.20f),
-            )
-        }
+        .drawBehind { drawGem(tint, glow) }
         .border(
-            width = 1.dp,
+            width = 1.5.dp,
             brush = Brush.linearGradient(
-                listOf(Color.White.copy(alpha = 0.70f), Color.White.copy(alpha = 0.08f), tint.copy(alpha = 0.50f))
+                listOf(Color.White.copy(alpha = 0.34f), Color.White.copy(alpha = 0.12f), tint.copy(alpha = 0.45f))
             ),
             shape = shape,
         )
@@ -89,35 +118,48 @@ fun GlassIconTile(
     size: Dp,
     modifier: Modifier = Modifier,
     glow: Float = 0.5f,
-    tint: Color = GemSky,
+    tint: Color? = null,
     content: @Composable () -> Unit,
 ) {
+    val accent = tint ?: remember { GemPalette[(gemCounter++) % GemPalette.size] }
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .size(size)
-            .glassGem(RoundedCornerShape(size * 0.34f), tint, glow),
+            // the accent drop glow under the tile
+            .drawBehind {
+                drawCircle(
+                    Brush.radialGradient(
+                        colors = listOf(accent.copy(alpha = 0.32f), Color.Transparent),
+                        center = Offset(this.size.width * 0.5f, this.size.height * 0.68f),
+                        radius = this.size.width * 0.78f,
+                    ),
+                    radius = this.size.width * 0.78f,
+                    center = Offset(this.size.width * 0.5f, this.size.height * 0.68f),
+                )
+            }
+            .glassGem(RoundedCornerShape(size * 0.36f), accent, glow),
     ) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier.size(size * 0.62f),
         ) {
-            // the extruded edge: the glyph again, flattened to a dark tint and pushed down
+            // contact shadow: the glyph again, flattened to near black and pushed down
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .size(size * 0.62f)
-                    .offset(y = size * 0.04f)
+                    .offset(y = size * 0.03f)
                     .graphicsLayer {
                         compositingStrategy = CompositingStrategy.Offscreen
-                        alpha = 0.65f
+                        alpha = 0.40f
                     }
                     .drawWithContent {
                         drawContent()
                         drawRect(Color(0xFF020A1C), blendMode = BlendMode.SrcIn)
                     },
             ) { content() }
-            // the raised face: white at the top fading into the tint at the bottom
+            // the glyph itself: solid white
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -125,10 +167,7 @@ fun GlassIconTile(
                     .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                     .drawWithContent {
                         drawContent()
-                        drawRect(
-                            Brush.verticalGradient(listOf(Color.White, Color.White, tint.copy(alpha = 0.85f))),
-                            blendMode = BlendMode.SrcIn,
-                        )
+                        drawRect(Color.White, blendMode = BlendMode.SrcIn)
                     },
             ) { content() }
         }
