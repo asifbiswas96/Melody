@@ -113,3 +113,37 @@ soft('screens/update/AboutSheet.kt', [('"MOCHY $installed"', '"MELODY $installed
 soft('screens/update/UpdatePromptSheet.kt', [('for mochy, then', 'for Melody, then')])
 soft('screens/settings/CipherSettingsScreen.kt', [('mochy caches that script', 'Melody caches that script')])
 print('brand pass done')
+
+# ---- glass surfaces for the screens the zips left on opaque / grey cards ----
+GLASS = 'Color(0x9E101A30)'
+GLASS_HI = 'Color(0xB8203A66)'
+def recolor(path, names, value):
+    p = B + path
+    t = open(p).read()
+    for nm in names:
+        rx = re.compile(r'(\b(?:val|const val) +' + nm + r'\b *(?::[^=]+)?= *)Color\(0x[0-9A-Fa-f]{8}\)')
+        t, k = rx.subn(lambda m: m.group(1) + value, t)
+        if k != 1:
+            print('RECOLOR MISS', path, nm, k)
+    open(p, 'w').write(t)
+
+recolor('screens/settings/ProfileScreen.kt', ['PageCard'], GLASS)
+recolor('screens/recap/StatsScreen.kt', ['StatsCard'], GLASS)
+recolor('screens/settings/storage/StorageParts.kt', ['StorageCard'], GLASS)
+recolor('screens/settings/integrations/IntegrationRow.kt', ['CardColor'], GLASS)
+recolor('screens/settings/integrations/discord/DiscordSettingCards.kt', ['Card'], GLASS)
+recolor('screens/settings/integrations/discord/DiscordSettingCards.kt', ['ToggleCard'], GLASS_HI)
+recolor('screens/settings/devspace/DevStyle.kt', ['DevCard'], GLASS)
+recolor('screens/profile/UserProfilePage.kt', ['ListensCardGrey'], GLASS)
+recolor('screens/audiolab/AudioLabKit.kt', ['Card'], GLASS)
+recolor('screens/audiolab/LabHeaderCard.kt', ['CardColor', 'PanelColor'], GLASS)
+recolor('screens/audiolab/LabHeaderCard.kt', ['CardEdge'], 'Color(0x33FFFFFF)')
+recolor('screens/search/SearchDesign.kt', ['Tile'], GLASS)
+recolor('screens/search/SearchDesign.kt', ['TileHigh'], GLASS_HI)
+recolor('component/HomeCards.kt', ['HopInCardBg'], GLASS)
+soft('screens/audiolab/AudioLabScreen.kt', [('.background(HubCard)', '.background(Color(0x9E101A30))')])
+edit('screens/setup/onboarding/CardMoments.kt', [
+    ('Color(0xFF2A2A2A), Color(0xFF0E0E0E)', 'Color(0xFF16306A), Color(0xFF03050F)'),
+    ('Modifier.fillMaxSize().background(Onb.Page))', 'Modifier.fillMaxSize().background(Onb.Page).melodyGlowBackground())'),
+], [GLOW])
+print('glass surfaces done')
