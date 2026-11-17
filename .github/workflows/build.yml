@@ -146,6 +146,6 @@ jobs:
           arch: x86_64
           profile: pixel_6
           force-avd-creation: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -memory 4096 -cores 3
           disable-animations: true
           script: bash -c "curl -sL https://raw.githubusercontent.com/asifbiswas96/Melody/main/tools/ci_screenshots.sh -o /tmp/ci_screenshots.sh && bash /tmp/ci_screenshots.sh"
