@@ -45,7 +45,7 @@ SEEDED=0
 if command -v ffmpeg >/dev/null 2>&1; then
   for spec in "1|Melody Glass Test|Glass Test|330|0x6ECDFF|0xB07CFF" "2|Melody Test Track Two|Test Artist B|440|0x35D6C0|0x2F8BFF" "3|Melody Test Track Three|Test Artist C|550|0xFF8A3D|0xB07CFF"; do
     IFS='|' read n title artist freq ca cb <<< "$spec"
-    ffmpeg -y -loglevel error -f lavfi -i "gradients=s=600x600:c0=$ca:c1=$cb:c2=0x03050F:x0=0:y0=0:x1=600:y1=600:d=1:n=3" -frames:v 1 /tmp/seed/art$n.png || continue
+    ffmpeg -y -loglevel error -f lavfi -i "gradients=s=600x600:c0=$ca:c1=$cb:c2=0x3B2A7A:x0=0:y0=0:x1=600:y1=600:d=1:n=3,drawgrid=w=100:h=100:t=4:c=white@0.35,drawbox=x=150:y=150:w=300:h=300:color=white@0.45:t=fill" -frames:v 1 /tmp/seed/art$n.png || continue
     ffmpeg -y -loglevel error -f lavfi -i "sine=frequency=$freq:duration=20" -i /tmp/seed/art$n.png -map 0:a -map 1:v -c:a libmp3lame -b:a 64k -c:v mjpeg -id3v2_version 3 -disposition:v attached_pic -metadata title="$title" -metadata artist="$artist" -metadata album="Melody test content" /tmp/seed/test$n.mp3 && SEEDED=$((SEEDED+1))
   done
 fi
@@ -392,6 +392,11 @@ if vis_have "melody glass test"; then
         shot 04d_nowplaying_later
         dump_strings || true
       fi
+      sleep 3
+      shot 04e_settled_a
+      sleep 5
+      shot 04f_settled_b
+      echo 'NOWPLAYING SETTLED: two frames 3s and 8s after the overlay step, to judge artwork load timing'
       # Assert the real player with unique strings inside an 8s window; emit
       # 04 only when the assertion passes.
       shot 04b_nowplaying_after
