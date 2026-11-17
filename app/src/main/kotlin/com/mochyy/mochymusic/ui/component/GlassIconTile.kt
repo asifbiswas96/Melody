@@ -134,3 +134,44 @@ fun GlassIconTile(
         }
     }
 }
+
+/** The big translucent glass card of the player: sheen from the top-left, teal light rising at the right, lit rim. */
+fun Modifier.glassCard(shape: Shape, tint: Color = GemSky): Modifier =
+    this
+        .clip(shape)
+        .drawBehind {
+            val w = this.size.width
+            val h = this.size.height
+            drawRect(
+                Brush.verticalGradient(
+                    listOf(Color(0xFF1A2A4D).copy(alpha = 0.55f), Color(0xFF0B1226).copy(alpha = 0.62f))
+                )
+            )
+            drawRect(
+                Brush.radialGradient(
+                    colors = listOf(tint.copy(alpha = 0.30f), Color.Transparent),
+                    center = Offset(w * 0.12f, 0f),
+                    radius = w * 0.75f,
+                )
+            )
+            drawRect(
+                Brush.radialGradient(
+                    colors = listOf(GemTeal.copy(alpha = 0.32f), Color.Transparent),
+                    center = Offset(w * 0.88f, h),
+                    radius = w * 0.60f,
+                )
+            )
+            drawRect(
+                Brush.verticalGradient(
+                    0f to Color.White.copy(alpha = 0.16f),
+                    0.40f to Color.Transparent,
+                )
+            )
+        }
+        .border(
+            width = 1.dp,
+            brush = Brush.linearGradient(
+                listOf(Color.White.copy(alpha = 0.55f), Color.White.copy(alpha = 0.06f), tint.copy(alpha = 0.40f))
+            ),
+            shape = shape,
+        )
