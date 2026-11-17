@@ -257,7 +257,7 @@ enable_online_no_sheet() {
 adb shell monkey -p com.neurobyte.melody.debug -c android.intent.category.LAUNCHER 1
 sleep 20
 for i in $(seq 1 22); do
-  [ "$i" -le 8 ] && shot "ob_$i"
+  [ "$i" -le 12 ] && shot "ob_$i"
   tap_text "For You" && break
   dump_strings >/dev/null 2>&1
   if vis_have_any "Update available" "What changed on"; then dismiss_update_sheet; dump_strings >/dev/null 2>&1; fi
@@ -278,63 +278,6 @@ for i in $(seq 1 22); do
 done
 sleep 3
 shot 01_home
-enable_online_no_sheet
-
-# --- Flow 08: Home "Try something new" genre page (GenreScreen) -------------
-# The row is randomized per run (Bollywood/Metal/R&B), so tap the stable row
-# header and validate the destination. This is a GENRE page, not the shared
-# PlaylistDetail; wide-header pixels remain an open item.
-relaunch
-dump_strings || true
-sleep 10
-shot 01c_home_online
-adb shell input swipe 540 1900 540 700 400
-sleep 2
-shot 01d_home_scrolled
-adb shell input swipe 540 700 540 1900 400
-sleep 1
-if tap_text "Try something new"; then
-  sleep 4
-  dump_strings || true
-  if vis_have_any "Add to library" "songs" "genre"; then
-    shot 08_genre
-    echo 'GENRE VERIFIED: Home content opened a genre detail page'
-    scroll_to_end
-    dump_strings || true
-    shot 08b_genre_bottom
-    echo 'GENRE BOTTOM SHOT: true scroll end - verify last row clears the nav bar'
-  else
-    echo 'GENRE UNVERIFIED: no detail strings after Home card tap'
-  fi
-else
-  echo 'GENRE UNVERIFIED: Try-something-new row not tappable on Home'
-fi
-
-# --- Flow 05: Search + true-scroll-end bottom --------------------------------
-relaunch
-tap_exact "Search" || tap_text "Search" || true
-sleep 3
-dump_strings || true
-if vis_have "moods"; then
-  shot 05_search
-  echo 'SEARCH VERIFIED: moods anchor present'
-  scroll_to_end
-  dump_strings || true
-  shot 05b_search_bottom
-  echo 'SEARCH BOTTOM SHOT: true scroll end - verify last genre row clears the nav bar'
-else
-  echo 'SEARCH: moods anchor missing offline, frame emitted for visual review'
-  shot 05_search_offline
-fi
-relaunch
-tap_exact "Search" || tap_text "Search" || true
-sleep 3
-adb shell input tap 540 984
-sleep 1
-adb shell input text lofi
-adb shell input keyevent 66
-sleep 8
-shot 05c_search_results
 
 # --- Flow 06: Settings via profile -------------------------------------------
 relaunch
@@ -541,6 +484,66 @@ if vis_have "melody glass test"; then
 else
   echo 'DIALOG UNVERIFIED: no song row to long-press'
 fi
+
+# --- v13: online flows run LAST so a lost emulator cannot cost the offline frames ---
+enable_online_no_sheet
+adb wait-for-device || true
+# --- Flow 08: Home "Try something new" genre page (GenreScreen) -------------
+# The row is randomized per run (Bollywood/Metal/R&B), so tap the stable row
+# header and validate the destination. This is a GENRE page, not the shared
+# PlaylistDetail; wide-header pixels remain an open item.
+relaunch
+dump_strings || true
+sleep 10
+shot 01c_home_online
+adb shell input swipe 540 1900 540 700 400
+sleep 2
+shot 01d_home_scrolled
+adb shell input swipe 540 700 540 1900 400
+sleep 1
+if tap_text "Try something new"; then
+  sleep 4
+  dump_strings || true
+  if vis_have_any "Add to library" "songs" "genre"; then
+    shot 08_genre
+    echo 'GENRE VERIFIED: Home content opened a genre detail page'
+    scroll_to_end
+    dump_strings || true
+    shot 08b_genre_bottom
+    echo 'GENRE BOTTOM SHOT: true scroll end - verify last row clears the nav bar'
+  else
+    echo 'GENRE UNVERIFIED: no detail strings after Home card tap'
+  fi
+else
+  echo 'GENRE UNVERIFIED: Try-something-new row not tappable on Home'
+fi
+
+# --- Flow 05: Search + true-scroll-end bottom --------------------------------
+relaunch
+tap_exact "Search" || tap_text "Search" || true
+sleep 3
+dump_strings || true
+if vis_have "moods"; then
+  shot 05_search
+  echo 'SEARCH VERIFIED: moods anchor present'
+  scroll_to_end
+  dump_strings || true
+  shot 05b_search_bottom
+  echo 'SEARCH BOTTOM SHOT: true scroll end - verify last genre row clears the nav bar'
+else
+  echo 'SEARCH: moods anchor missing offline, frame emitted for visual review'
+  shot 05_search_offline
+fi
+relaunch
+tap_exact "Search" || tap_text "Search" || true
+sleep 3
+adb shell input tap 540 984
+sleep 1
+adb shell input text lofi
+adb shell input keyevent 66
+sleep 8
+shot 05c_search_results
+
 
 echo "### Screenshots" >> "$GITHUB_STEP_SUMMARY"
 for f in shots/*.png; do
