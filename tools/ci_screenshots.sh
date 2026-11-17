@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # Melody CI: install the debug APK on the emulator, seed a test track, capture
-# Home / Playlist / Library / mini player / Now Playing / Search / Settings /
+# Home / Genre / Search / Settings / Library / mini player / Now Playing /
 # dialog screenshots, upload to tmpfiles.
-# v3: assertions run against the VISIBLE text set (same extraction as
-# dump_strings), never raw XML; every tap uses exact node bounds from the live
-# dump; frames are emitted only when their screen assertion passed.
+# v5: independent flows with a full app relaunch (force-stop + monkey) between
+# them, per capture-QA directive; Now Playing is captured only after the
+# immersive "GOT IT" tutorial is dismissed and unique player strings are
+# asserted inside an 8s window; genre page is labeled as genre (the shared
+# PlaylistDetail page remains unverified); scroll bottoms use the
+# stable-string-set test (true scroll end). Assertions run against the
+# VISIBLE text set only; frames are emitted only when their screen assertion
+# passed.
 set -x
 adb install -r "$(find /home/runner/work -name '*.apk' 2>/dev/null | head -1)"
 # Grant media permissions deterministically - the onboarding ALLOW tap may
@@ -114,8 +119,7 @@ dump_strings() {
   python3 -c "import re;print('SCREEN STRINGS:', ' | '.join(sorted(set(re.findall(r'text=\"([^\"]{2,60})\"', open('/tmp/ui_dump.xml').read())))[:40]))"
 }
 # Assertion against the VISIBLE text set only (same extraction as
-# dump_strings). Raw-XML substring matching is forbidden: hidden nodes and
-# accessibility text made "settings" match on the Home screen in v2.
+# dump_strings). Raw-XML substring matching is forbidden.
 vis_have() {
   python3 -c "
 import re, sys
@@ -123,14 +127,53 @@ d = open('/tmp/ui_dump.xml').read()
 vis = ' '.join(re.findall(r'text=\"([^\"]{2,60})\"', d)).lower()
 sys.exit(0 if sys.argv[1].lower() in vis else 1)" "$1"
 }
+vis_have_any() {
+  python3 -c "
+import re, sys
+d = open('/tmp/ui_dump.xml').read()
+vis = ' '.join(re.findall(r'text=\"([^\"]{2,60})\"', d)).lower()
+sys.exit(0 if any(a.lower() in vis for a in sys.argv[1:]) else 1)" "$@"
+}
+vis_set() {
+  python3 -c "import re;print('|'.join(sorted(set(re.findall(r'text=\"([^\"]{2,60})\"', open('/tmp/ui_dump.xml').read())))))"
+}
+# True scroll end: swipe until the visible string set stops changing.
+scroll_to_end() {
+  PREV=''
+  for i in $(seq 1 8); do
+    dump_strings >/dev/null 2>&1
+    CUR=$(vis_set)
+    if [ "$CUR" = "$PREV" ]; then echo "SCROLL END after $i swipe(s)"; return 0; fi
+    PREV="$CUR"
+    adb shell input swipe 540 1900 540 500 >/dev/null 2>&1
+    sleep 1
+  done
+  echo 'SCROLL END NOT REACHED within 8 swipes'
+}
+# Full relaunch for independent flows. Assumes onboarding already completed
+# (v5 runs onboarding once after first launch, before any relaunch).
+relaunch() {
+  adb shell am force-stop com.neurobyte.melody.debug
+  sleep 1
+  adb shell monkey -p com.neurobyte.melody.debug -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+  sleep 8
+  for i in $(seq 1 8); do
+    dump_strings >/dev/null 2>&1
+    if vis_have_any "For You" "Try something new" "Home"; then echo "RELAUNCH OK ($i)"; return 0; fi
+    sleep 2
+  done
+  echo 'RELAUNCH FAIL: no Home anchor after force-stop + monkey'
+  return 1
+}
 
+# --- First launch: onboarding once -----------------------------------------
 adb shell monkey -p com.neurobyte.melody.debug -c android.intent.category.LAUNCHER 1
 sleep 20
 for i in $(seq 1 22); do
   tap_text "For You" && break
   # Profile page: Next stays disabled until a username is typed. Exact-only match on
-  # the placeholder so we type once (the "what's your username?" label never matches);
-  # then drop the keyboard so Next is not hidden behind the IME.
+  # the placeholder so we type once; then drop the keyboard so Next is not hidden
+  # behind the IME.
   if tap_exact "username"; then
     adb shell input text "Asif"
     sleep 1
@@ -143,32 +186,72 @@ done
 sleep 3
 shot 01_home
 
-# --- Playlist detail via Home content (independent of the seeded song) ---
-# The Home genre row is randomized (Bollywood one run, Metal the next), so tap
-# the stable "Try something new" row header and validate the destination.
+# --- Flow 08: Home "Try something new" genre page (GenreScreen) -------------
+# The row is randomized per run (Bollywood/Metal/R&B), so tap the stable row
+# header and validate the destination. This is a GENRE page, not the shared
+# PlaylistDetail; wide-header pixels remain an open item.
+relaunch
 dump_strings || true
 if tap_text "Try something new"; then
   sleep 4
   dump_strings || true
-  if vis_have "Add to library" || vis_have "songs"; then
-    shot 08_playlist
-    echo 'PLAYLIST VERIFIED: Home content opened a detail page'
-    adb shell input swipe 540 1900 540 600 >/dev/null 2>&1
-    sleep 2
+  if vis_have_any "Add to library" "songs" "genre"; then
+    shot 08_genre
+    echo 'GENRE VERIFIED: Home content opened a genre detail page'
+    scroll_to_end
     dump_strings || true
-    shot 08b_playlist_bottom
-    echo 'PLAYLIST BOTTOM SHOT: verify last row clears the nav bar'
+    shot 08b_genre_bottom
+    echo 'GENRE BOTTOM SHOT: true scroll end - verify last row clears the nav bar'
   else
-    echo 'PLAYLIST UNVERIFIED: no detail strings after Home card tap'
+    echo 'GENRE UNVERIFIED: no detail strings after Home card tap'
   fi
-  adb shell input keyevent BACK || true
-  sleep 2
 else
-  echo 'PLAYLIST UNVERIFIED: Try-something-new row not tappable on Home'
+  echo 'GENRE UNVERIFIED: Try-something-new row not tappable on Home'
 fi
 
-# --- Library + player flow: assertion-driven; each step verifies the current
-# UI dump before acting and names the failing checkpoint instead of guessing.
+# --- Flow 05: Search + true-scroll-end bottom --------------------------------
+relaunch
+tap_exact "Search" || tap_text "Search" || true
+sleep 3
+dump_strings || true
+if vis_have "moods"; then
+  shot 05_search
+  echo 'SEARCH VERIFIED: moods anchor present'
+  scroll_to_end
+  dump_strings || true
+  shot 05b_search_bottom
+  echo 'SEARCH BOTTOM SHOT: true scroll end - verify last genre row clears the nav bar'
+else
+  echo 'NAV FAIL: Search screen'
+fi
+
+# --- Flow 06: Settings via profile -------------------------------------------
+relaunch
+if tap_text "profile"; then
+  sleep 3
+  dump_strings || true
+  # Settings row can sit half-hidden at the page bottom; scroll it into view first.
+  adb shell input swipe 540 1900 540 900 >/dev/null 2>&1
+  sleep 1
+  dump_strings || true
+  if tap_text "Open settings"; then
+    sleep 3
+    dump_strings || true
+    if vis_have_any "app behaviour" "customisation" "animation speed"; then
+      shot 06_settings
+      echo 'SETTINGS VERIFIED: unique settings body strings present'
+    else
+      echo 'NAV FAIL: Settings screen body not detected - frame not emitted'
+    fi
+  else
+    echo 'NAV FAIL: Settings entry (Open settings) not found from profile'
+  fi
+else
+  echo 'NAV FAIL: profile entry not tappable by text/desc'
+fi
+
+# --- Flow 02/03/04: import + player ------------------------------------------
+relaunch
 PLAYER_OK=0
 if tap_text "Library"; then
   sleep 3
@@ -225,17 +308,35 @@ if vis_have "melody glass test"; then
     dump_strings || true
     if vis_have "melody glass test"; then
       shot 03_miniplayer
+      echo 'MINIPLAYER VERIFIED: song row tap showed the mini player'
       tap_text "Melody Glass Test" || true
       sleep 3
+      # Now Playing opens immersive with a "Viewing full screen / GOT IT"
+      # tutorial overlay that breaks later taps: dismiss it, then swipe down
+      # to leave immersive mode before asserting and capturing.
       dump_strings || true
-      if vis_have "melody glass test"; then
+      if vis_have "got it"; then
+        tap_text "Got it" || tap_text "GOT IT" || true
+        sleep 2
+        adb shell input swipe 540 700 540 1900 >/dev/null 2>&1
+        sleep 2
+        dump_strings || true
+      fi
+      # Assert the real player with unique strings inside an 8s window; emit
+      # 04 only when the assertion passes.
+      POK=0
+      for i in $(seq 1 4); do
+        dump_strings >/dev/null 2>&1
+        if vis_have_any "no lyrics for this song" "up next" "queue"; then POK=1; break; fi
+        sleep 2
+      done
+      dump_strings || true
+      if [ "$POK" = 1 ]; then
         shot 04_nowplaying
         PLAYER_OK=1
-        echo 'PLAYER VERIFIED: song row -> mini player -> Now Playing'
-        adb shell input keyevent BACK || true
-        sleep 2
+        echo 'PLAYER VERIFIED: unique Now Playing strings after overlay dismissal'
       else
-        echo 'ASSERT FAIL: Now Playing did not open from mini player'
+        echo 'PLAYER UNVERIFIED: no unique Now Playing strings in 8s window - frame not emitted'
       fi
     else
       echo 'ASSERT FAIL: mini player did not appear after song tap'
@@ -248,9 +349,7 @@ else
 fi
 
 # Home again with library content: mini player reachability + loaded Home.
-adb shell input keyevent BACK || true
-sleep 1
-tap_exact "Home" || tap_text "Home" || true
+relaunch
 sleep 3
 dump_strings || true
 if [ "$PLAYER_OK" = 1 ]; then
@@ -262,56 +361,8 @@ if [ "$PLAYER_OK" = 1 ]; then
   fi
 fi
 
-# --- Independent captures (never gated on the player flow) ---
-tap_exact "Search" || tap_text "Search" || true
-sleep 3
-dump_strings || true
-if vis_have "moods"; then
-  shot 05_search
-  # Scroll until the visible string set stops changing = true scroll end.
-  PREV=''
-  for i in $(seq 1 8); do
-    dump_strings >/dev/null 2>&1
-    CUR=$(python3 -c "import re;print('|'.join(sorted(set(re.findall(r'text=\"([^\"]{2,60})\"', open('/tmp/ui_dump.xml').read())))))")
-    if [ "$CUR" = "$PREV" ]; then echo "SEARCH SCROLL END after $i swipe(s)"; break; fi
-    PREV="$CUR"
-    adb shell input swipe 540 1900 540 500 >/dev/null 2>&1
-    sleep 1
-  done
-  dump_strings || true
-  shot 05b_search_bottom
-  echo 'SEARCH BOTTOM SHOT: true scroll end - verify last genre row clears the nav bar'
-else
-  echo 'NAV FAIL: Search screen'
-fi
-
-adb shell input keyevent BACK || true
-sleep 1
-if tap_text "profile"; then
-  sleep 3
-  dump_strings || true
-  # Settings row can sit half-hidden at the page bottom; scroll it into view first.
-  adb shell input swipe 540 1900 540 900 >/dev/null 2>&1
-  sleep 1
-  dump_strings || true
-  if tap_text "Open settings" || tap_exact "Settings" || tap_text "Settings"; then
-    sleep 3
-    dump_strings || true
-    if vis_have "app behaviour" || vis_have "customisation" || vis_have "animation"; then
-      shot 06_settings
-      echo 'SETTINGS VERIFIED: unique settings body strings present'
-    else
-      echo 'NAV FAIL: Settings screen body not detected - frame not emitted'
-    fi
-    adb shell input keyevent BACK || true
-  else
-    echo 'NAV FAIL: Settings entry not found from profile'
-  fi
-else
-  echo 'NAV FAIL: profile entry not tappable by text/desc'
-fi
-
-# Long-press dialog: only when a song row actually exists (go via Library > Songs)
+# --- Flow 07: long-press dialog (fresh relaunch, fresh dump) ------------------
+relaunch
 tap_text "Library" || true
 sleep 2
 tap_text "Songs" || true
@@ -325,7 +376,7 @@ if vis_have "melody glass test"; then
     adb shell input swipe $XY $XY 700
     sleep 2
     dump_strings || true
-    if vis_have "play next" || vis_have "add to playlist" || vis_have "delete" || vis_have "share"; then
+    if vis_have_any "play next" "add to playlist" "delete" "share"; then
       shot 07_dialog
       echo 'DIALOG VERIFIED: long-press opened the song action sheet'
     else
