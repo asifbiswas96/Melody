@@ -229,7 +229,7 @@ _o2 = """                    .clip(CircleShape)
 
                 if (boldIcon) {"""
 assert _s.count(_o2) == 1
-_s = _s.replace(_o2, """                    .glassGem(CircleShape, GemBlue, 0.5f)
+_s = _s.replace(_o2, """                    .glassGem(androidx.compose.foundation.shape.RoundedCornerShape(percent = 36), GemBlue, 0.5f)
             ) {
 
                 if (boldIcon) {""")
@@ -249,13 +249,13 @@ _o = """            .size(touch)
             }
 """
 assert _s.count(_o) == 1
-_s = _s.replace(_o, _o + "            .padding(5.dp)\n            .glassGem(CircleShape, GemBlue, 0.55f)\n")
+_s = _s.replace(_o, _o + "            .padding(5.dp)\n            .glassGem(androidx.compose.foundation.shape.RoundedCornerShape(percent = 36), GemBlue, 0.55f)\n")
 _o = """                    } else Modifier
                 ),
         ) {
             if (ended) {"""
 assert _s.count(_o) == 1
-_s = _s.replace(_o, """                    } else Modifier.padding(3.dp).glassGem(CircleShape, GemTeal, 0.75f)
+_s = _s.replace(_o, """                    } else Modifier.padding(3.dp).glassGem(androidx.compose.foundation.shape.RoundedCornerShape(percent = 36), GemTeal, 0.75f)
                 ),
         ) {
             if (ended) {""")
