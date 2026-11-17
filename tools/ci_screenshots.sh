@@ -55,6 +55,16 @@ sleep 3
 if adb shell ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then echo 'NET CHECK: STILL ONLINE'; else echo 'NET CHECK: offline'; fi
 
 mkdir -p shots
+upload_shots() {
+  mkdir -p shots_done
+  for f in shots/*.png; do
+    [ -f "$f" ] || continue
+    R=$(curl -sS --retry 3 -F "file=@$f" https://tmpfiles.org/api/v1/upload || true)
+    L=$(echo "$R" | jq -r '.data.url // "UPLOAD_FAILED"')
+    echo "$f -> $L" | tee -a "$GITHUB_STEP_SUMMARY"
+    mv "$f" shots_done/
+  done
+}
 cat > /tmp/tap.py <<'TAPPEOF'
 import sys, re, xml.etree.ElementTree as ET
 want = sys.argv[1].lower()
@@ -485,9 +495,10 @@ else
   echo 'DIALOG UNVERIFIED: no song row to long-press'
 fi
 
-# --- v13: online flows run LAST so a lost emulator cannot cost the offline frames ---
+# --- v14: upload the offline frames first, then run the online flows LAST ---
+echo "### Screenshots (offline phase)" >> "$GITHUB_STEP_SUMMARY"
+upload_shots
 enable_online_no_sheet
-adb wait-for-device || true
 # --- Flow 08: Home "Try something new" genre page (GenreScreen) -------------
 # The row is randomized per run (Bollywood/Metal/R&B), so tap the stable row
 # header and validate the destination. This is a GENRE page, not the shared
@@ -545,9 +556,5 @@ sleep 8
 shot 05c_search_results
 
 
-echo "### Screenshots" >> "$GITHUB_STEP_SUMMARY"
-for f in shots/*.png; do
-  R=$(curl -sS --retry 3 -F "file=@$f" https://tmpfiles.org/api/v1/upload || true)
-  L=$(echo "$R" | jq -r '.data.url // "UPLOAD_FAILED"')
-  echo "$f -> $L" | tee -a "$GITHUB_STEP_SUMMARY"
-done
+echo "### Screenshots (online phase)" >> "$GITHUB_STEP_SUMMARY"
+upload_shots
