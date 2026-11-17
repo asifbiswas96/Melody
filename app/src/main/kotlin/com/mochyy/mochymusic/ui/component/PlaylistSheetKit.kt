@@ -441,7 +441,7 @@ internal fun SheetActionCard(
             )
             .padding(16.dp),
     ) {
-        icon()
+        GlassIconTile(size = 44.dp) { icon() }
         Spacer(Modifier.height(16.dp))
         Text(
             text = title,
