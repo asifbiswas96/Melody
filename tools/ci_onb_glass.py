@@ -171,3 +171,42 @@ assert 'melodyGlowBackground()' in _s
 if 'ui.component.melodyGlowBackground' not in _s:
     _s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.melodyGlowBackground\nimport ', 1)
 open(_p, 'w').write(_s)
+
+# v21: Player transport as three 3D glass gems (skip, big play, skip) instead of bare huge glyphs on a pill
+_p = B + 'player/PlayerControls.kt'
+_s = open(_p).read()
+def _rep(old, new, cnt=1):
+    global _s
+    assert _s.count(old) == cnt, (old[:60], _s.count(old))
+    _s = _s.replace(old, new)
+_rep('val buttonSize = (maxWidth * 0.21f).coerceIn(64.dp, 96.dp)', 'val buttonSize = (maxWidth * 0.17f).coerceIn(54.dp, 80.dp)')
+_rep('val iconSize = buttonSize * 0.73f', 'val iconSize = buttonSize * 0.46f')
+_rep('''                holdLabel = "0.5\\u00D7",
+                holdPulseMs = 900L,
+                flagshipGlyph = flagshipGlyph,
+                modifier = Modifier.size(buttonSize)''', '''                holdLabel = "0.5\\u00D7",
+                holdPulseMs = 900L,
+                flagshipGlyph = flagshipGlyph,
+                modifier = Modifier.size(buttonSize).glassGem(RoundedCornerShape(50), GemSky, 0.5f)''')
+_rep('''                holdLabel = "2\\u00D7",
+                holdPulseMs = 420L,
+                flagshipGlyph = flagshipGlyph,
+                modifier = Modifier.size(buttonSize)''', '''                holdLabel = "2\\u00D7",
+                holdPulseMs = 420L,
+                flagshipGlyph = flagshipGlyph,
+                modifier = Modifier.size(buttonSize).glassGem(RoundedCornerShape(50), GemSky, 0.5f)''')
+_rep('''                tint = Color.White,
+                iconSize = iconSize,
+                flagshipGlyph = flagshipGlyph,
+                modifier = Modifier.size(buttonSize)''', '''                tint = Color.White,
+                iconSize = iconSize * 1.2f,
+                flagshipGlyph = flagshipGlyph,
+                modifier = Modifier.size(buttonSize * 1.3f).glassGem(RoundedCornerShape(50), GemTeal, 0.95f)''')
+_rep('''                .background(Color(0xFF0E1A38).copy(alpha = 0.62f))
+                .border(1.dp, Color(0xFF6ECDFF).copy(alpha = 0.28f), RoundedCornerShape(50))
+                .padding(vertical = 10.dp)''', '''                .background(Color(0x66101A30))
+                .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(50))
+                .padding(vertical = 12.dp)''')
+_s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.GemSky\nimport com.mochyy.mochymusic.ui.component.GemTeal\nimport com.mochyy.mochymusic.ui.component.glassGem\nimport ', 1)
+open(_p, 'w').write(_s)
+print('player gems done')
