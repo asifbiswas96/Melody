@@ -289,64 +289,6 @@ done
 sleep 3
 shot 01_home
 
-# --- Flow 06: Settings via profile -------------------------------------------
-relaunch
-if tap_text "profile"; then
-  sleep 3
-  dump_strings || true
-  shot 06p_profile
-  if tap_text_vis "About"; then
-    sleep 3
-    shot 06a_about
-    adb shell input keyevent BACK
-    sleep 2
-  else
-    echo 'ABOUT UNVERIFIED: About not tappable from profile'
-  fi
-  # Settings row can sit half-hidden at the page bottom; scroll it into view first.
-  adb shell input swipe 540 1900 540 900 >/dev/null 2>&1
-  sleep 1
-  dump_strings || true
-  if tap_text "Open settings"; then
-    sleep 3
-    dump_strings || true
-    if vis_have_any "app behaviour" "customisation" "animation speed"; then
-      shot 06_settings
-      echo 'SETTINGS VERIFIED: unique settings body strings present'
-      for sp in "Audio Lab" "App behaviour" "Customisation" "Storage" "Integrations"; do
-        if tap_text_vis "$sp"; then
-          sleep 3
-          shot "06s_$(echo $sp | tr -d ' ')"
-          adb shell input keyevent BACK
-          sleep 2
-        else
-          echo "SETTINGS SUB UNVERIFIED: $sp not tappable"
-        fi
-      done
-      scroll_to_end
-      dump_strings || true
-      shot 06b_settings_bottom
-      echo 'SETTINGS BOTTOM SHOT: true scroll end - verify last rows clear both navs'
-      for sp in "Device integration" "Modules"; do
-        if tap_text_vis "$sp"; then
-          sleep 3
-          shot "06s_$(echo $sp | tr -d ' ')"
-          adb shell input keyevent BACK
-          sleep 2
-        else
-          echo "SETTINGS SUB UNVERIFIED: $sp not tappable"
-        fi
-      done
-    else
-      echo 'NAV FAIL: Settings screen body not detected - frame not emitted'
-    fi
-  else
-    echo 'NAV FAIL: Settings entry (Open settings) not found from profile'
-  fi
-else
-  echo 'NAV FAIL: profile entry not tappable by text/desc'
-fi
-
 # --- Flow 02/03/04: import + player ------------------------------------------
 relaunch
 PLAYER_OK=0
@@ -493,6 +435,76 @@ if vis_have "melody glass test"; then
   fi
 else
   echo 'DIALOG UNVERIFIED: no song row to long-press'
+fi
+
+# v15: player frames first, uploaded before the settings flow
+echo "### Screenshots (player phase)" >> "$GITHUB_STEP_SUMMARY"
+upload_shots
+
+# --- Flow 06: Settings via profile -------------------------------------------
+relaunch
+if tap_text "profile"; then
+  sleep 3
+  dump_strings || true
+  shot 06p_profile
+  if tap_text_vis "About"; then
+    sleep 3
+    shot 06a_about
+    if tap_text "About app"; then
+      sleep 3
+      shot 06a2_about_sheet
+      adb shell input keyevent BACK
+      sleep 2
+    else
+      echo 'ABOUT SHEET UNVERIFIED: About app row not tappable'
+    fi
+    adb shell input keyevent BACK
+    sleep 2
+  else
+    echo 'ABOUT UNVERIFIED: About not tappable from profile'
+  fi
+  # Settings row can sit half-hidden at the page bottom; scroll it into view first.
+  adb shell input swipe 540 1900 540 900 >/dev/null 2>&1
+  sleep 1
+  dump_strings || true
+  if tap_text "Open settings"; then
+    sleep 3
+    dump_strings || true
+    if vis_have_any "app behaviour" "customisation" "animation speed"; then
+      shot 06_settings
+      echo 'SETTINGS VERIFIED: unique settings body strings present'
+      for sp in "Audio Lab" "App behaviour" "Customisation" "Storage" "Integrations"; do
+        if tap_text_vis "$sp"; then
+          sleep 3
+          shot "06s_$(echo $sp | tr -d ' ')"
+          adb shell input keyevent BACK
+          sleep 2
+        else
+          echo "SETTINGS SUB UNVERIFIED: $sp not tappable"
+        fi
+      done
+      scroll_to_end
+      dump_strings || true
+      shot 06b_settings_bottom
+      echo 'SETTINGS BOTTOM SHOT: true scroll end - verify last rows clear both navs'
+      for sp in "Device integration" "Modules"; do
+        if tap_text_vis "$sp"; then
+          sleep 3
+          shot "06s_$(echo $sp | tr -d ' ')"
+          adb shell input keyevent BACK
+          sleep 2
+        else
+          echo "SETTINGS SUB UNVERIFIED: $sp not tappable"
+        fi
+      done
+    else
+      echo 'NAV FAIL: Settings screen body not detected - frame not emitted'
+    fi
+  else
+    echo 'NAV FAIL: Settings entry (Open settings) not found from profile'
+  fi
+else
+  echo 'NAV FAIL: profile entry not tappable by text/desc'
 fi
 
 # --- v14: upload the offline frames first, then run the online flows LAST ---
