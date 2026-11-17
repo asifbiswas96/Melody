@@ -19,6 +19,14 @@
 # stable-string-set test (true scroll end). Assertions run against the
 # VISIBLE text set only; frames are emitted only when their screen assertion
 # passed.
+# v9: ROOT CAUSE of the v5-v8 failures: the update sheet scrolls, off-viewport
+# nodes drop out of the uiautomator dump, and a scrolled-down sheet shows none
+# of the title strings, so "gone" was a false positive (sheet still on screen
+# in the frames). v9 (capture-only, no app code change): cut the emulator
+# network BEFORE first launch so the updater finds no release and no sheet is
+# shown, log a network check, and treat the sheet as gone only when a POSITIVE
+# Home anchor ("For You" chip) is visible. Home content that needs the network
+# will be empty in frames; that is a documented capture limit.
 set -x
 adb install -r "$(find /home/runner/work -name '*.apk' 2>/dev/null | head -1)"
 # Grant media permissions deterministically - the onboarding ALLOW tap may
@@ -34,6 +42,17 @@ adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file:
 adb shell "content insert --uri content://media/external_primary/audio/media --bind _data:s:/sdcard/Music/glass_test.mp3 --bind 'title:s:Melody Glass Test' --bind mime_type:s:audio/mpeg --bind is_music:i:1" || true
 adb shell "content insert --uri content://media/external/audio/media --bind _data:s:/sdcard/Music/glass_test.mp3 --bind 'title:s:Melody Glass Test' --bind mime_type:s:audio/mpeg --bind is_music:i:1" || true
 adb shell "content query --uri content://media/external/audio/media --projection title:_data" | grep -i 'glass_test' || echo 'MEDIASTORE SEED FAILED'
+
+# --- v9: offline emulator so the upstream updater cannot show its sheet ----
+adb root || true
+sleep 2
+adb shell svc wifi disable || true
+adb shell svc data disable || true
+adb shell cmd connectivity airplane-mode enable || true
+adb shell settings put global airplane_mode_on 1 || true
+adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true || true
+sleep 3
+if adb shell ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then echo 'NET CHECK: STILL ONLINE'; else echo 'NET CHECK: offline'; fi
 
 mkdir -p shots
 cat > /tmp/tap.py <<'TAPPEOF'
@@ -179,7 +198,7 @@ dismiss_update_sheet() {
       sleep 2
       dump_strings >/dev/null 2>&1
     fi
-    if vis_have_any "no thanks" "Install here" "Open the web" "Update available" "What changed on" "This update includes" "Tv Version" "Floating Lyrics" "Device integration"; then
+    if vis_have_any "no thanks" "Install here" "Open the web" "Update available" "What changed on" "This update includes" "Tv Version" "Floating Lyrics" "Device integration" "Honourable mentions" "Android auto support" "Lanscape" "Quicklook" || ! vis_have_any "For You" "Try something new"; then
       echo "UPDATE SHEET: still present (attempt $j)"
       adb shell input swipe 540 1900 540 700 400
       sleep 1
@@ -201,7 +220,7 @@ relaunch() {
   for i in $(seq 1 8); do
     dump_strings >/dev/null 2>&1
     if vis_have_any "Update available" "What changed on"; then dismiss_update_sheet; dump_strings >/dev/null 2>&1; fi
-    if vis_have_any "For You" "Try something new" "Home"; then echo "RELAUNCH OK ($i)"; return 0; fi
+    if vis_have_any "For You" "Try something new"; then echo "RELAUNCH OK ($i)"; return 0; fi
     sleep 2
   done
   echo 'RELAUNCH FAIL: no Home anchor after force-stop + monkey'
@@ -217,7 +236,7 @@ for i in $(seq 1 22); do
   if vis_have_any "Update available" "What changed on"; then dismiss_update_sheet; dump_strings >/dev/null 2>&1; fi
   # Home already visible (sheet dismissed, no onboarding): stop before the
   # fallback center tap can open something on the home screen.
-  if vis_have_any "For You" "Try something new" "Home"; then echo "ONBOARDING SKIP: home anchors visible ($i)"; break; fi
+  if vis_have_any "For You" "Try something new"; then echo "ONBOARDING SKIP: home anchors visible ($i)"; break; fi
   # Profile page: Next stays disabled until a username is typed. Exact-only match on
   # the placeholder so we type once; then drop the keyboard so Next is not hidden
   # behind the IME.
