@@ -2,6 +2,9 @@
 # Melody CI: install the debug APK on the emulator, seed a test track, capture
 # Home / Genre / Search / Settings / Library / mini player / Now Playing /
 # dialog screenshots, upload to tmpfiles.
+# v7: the update sheet's only dismissal is its bottom "no thanks" button -
+# BACK does nothing (custom MenuSheetSurface). Swipe the sheet's scroll
+# column up to reveal the button, then tap it.
 # v6: dismiss the upstream "Update available" changelog sheet (shown when
 # upstream ships a newer version, e.g. 8.4.2); it blocks every anchor.
 # v5: independent flows with a full app relaunch (force-stop + monkey) between
@@ -32,7 +35,8 @@ mkdir -p shots
 cat > /tmp/tap.py <<'TAPPEOF'
 import sys, re, xml.etree.ElementTree as ET
 want = sys.argv[1].lower()
-exact_only = len(sys.argv) > 2 and sys.argv[2] == 'exact'
+exact_only = 'exact' in sys.argv[2:]
+visible_only = 'visible' in sys.argv[2:]
 click_exact = None
 plain_exact = None
 click_any = None
@@ -47,6 +51,8 @@ for node in ET.parse('/tmp/ui.xml').iter('node'):
         continue
     l, t, r, b = map(int, m.groups())
     cx, cy = (l + r) // 2, (t + b) // 2
+    if visible_only and not (0 <= cx <= 1080 and 0 <= cy <= 2400):
+        continue
     clickable = node.get('clickable') == 'true'
     exact = txt.strip() == want or desc.strip() == want
     if clickable and exact:
@@ -108,6 +114,11 @@ tap_exact() {
   XY=$(python3 /tmp/tap.py "$1" exact) || return 1
   adb shell input tap $XY
 }
+tap_text_vis() {
+  refresh || return 1
+  XY=$(python3 /tmp/tap.py "$1" visible) || return 1
+  adb shell input tap $XY
+}
 tap_regex() {
   refresh || return 1
   XY=$(python3 /tmp/tap_re.py "$1") || return 1
@@ -156,12 +167,16 @@ scroll_to_end() {
 # changed on X.Y.Z" appears on launch whenever upstream has a newer version.
 # Prefer a text button if one exists; BACK closes the bottom sheet otherwise.
 dismiss_update_sheet() {
-  for j in 1 2 3; do
+  for j in 1 2 3 4 5 6 7 8; do
     dump_strings >/dev/null 2>&1
     if vis_have_any "Update available" "What changed on"; then
       echo "UPDATE SHEET: dismissing (attempt $j)"
-      tap_text "Later" || tap_text "Not now" || tap_text "Maybe later" || adb shell input keyevent 4
-      sleep 2
+      # The sheet's column composes all children even off-screen, so the
+      # button text is always in the dump but its bounds may be beyond the
+      # viewport: try the tap, then swipe the column up to reveal it.
+      if tap_text_vis "no thanks"; then sleep 2; continue; fi
+      adb shell input swipe 540 1900 540 700 400
+      sleep 1
     else
       return 0
     fi
