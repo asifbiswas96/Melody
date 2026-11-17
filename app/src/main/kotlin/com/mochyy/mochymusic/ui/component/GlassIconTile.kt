@@ -16,9 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
@@ -57,11 +55,14 @@ fun GlassIconTile(
                         radius = this.size.width * 0.9f,
                     )
                 )
-                drawRoundRect(
-                    color = Color.White.copy(alpha = 0.34f),
-                    topLeft = Offset(this.size.width * 0.16f, this.size.height * 0.08f),
-                    size = Size(this.size.width * 0.44f, this.size.height * 0.15f),
-                    cornerRadius = CornerRadius(this.size.height * 0.08f),
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(Color.White.copy(alpha = 0.30f), Color.Transparent),
+                        center = Offset(this.size.width * 0.30f, this.size.height * 0.18f),
+                        radius = this.size.width * 0.50f,
+                    ),
+                    radius = this.size.width * 0.50f,
+                    center = Offset(this.size.width * 0.30f, this.size.height * 0.18f),
                 )
             }
             .border(
@@ -72,6 +73,12 @@ fun GlassIconTile(
                 shape = shape,
             ),
     ) {
-        content()
+        // icons larger than the tile interior shrink to fit instead of overflowing the glass
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(size * 0.62f),
+        ) {
+            content()
+        }
     }
 }
