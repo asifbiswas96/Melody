@@ -222,8 +222,7 @@ _o = """            .background(com.mochyy.mochymusic.ui.component.MelodyGlassTi
             )
             .padding(horizontal = 16.dp, vertical = 6.dp)"""
 assert _s.count(_o) == 1
-_s = _s.replace(_o, """            .glassCard(androidx.compose.foundation.shape.RoundedCornerShape(28.dp))
-            .padding(horizontal = 16.dp, vertical = 10.dp)""")
+_s = _s.replace(_o, """            .padding(horizontal = 16.dp, vertical = 10.dp)""")
 _o2 = """                    .clip(CircleShape)
                     .background(containerColor)
             ) {
@@ -287,3 +286,79 @@ _s = _s.replace(_o, """            GlassIconTile(size = 36.dp, glow = 0.4f) {
             Spacer(Modifier.width(12.dp))""")
 open(_p, 'w').write(_s)
 print('v23 audiolab sheet + settings tiles done')
+
+# v24: ONE glass player card behind info + seek bar + transport (was a small info strip over a separate pill);
+# skip glyph scaled to sit inside its gem; deck pill no longer drawn separately.
+_p = B + 'player/flagship/FlagshipTransport.kt'
+_s = open(_p).read()
+_o = """        Spacer(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawBehind { drawSkipGlyph(shapes, cycle.phase(), unit.toPx(), Color.White, backwards) },
+        )"""
+assert _s.count(_o) == 1
+_s = _s.replace(_o, """        Spacer(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { scaleX = 0.6f; scaleY = 0.6f }
+                .drawBehind { drawSkipGlyph(shapes, cycle.phase(), unit.toPx(), Color.White, backwards) },
+        )""")
+for a, b in (('Color(0xFF0A1226).copy(alpha = 0.50f)', 'Color(0xFF0A1226).copy(alpha = 0f)'), ('Color(0xFF6ECDFF).copy(alpha = 0.22f),', 'Color(0xFF6ECDFF).copy(alpha = 0f),')):
+    assert _s.count(a) == 1, a
+    _s = _s.replace(a, b)
+open(_p, 'w').write(_s)
+_p = B + 'player/BottomSheetPlayer.kt'
+_s = open(_p).read()
+_o = """                        letTouchesThroughWhenHidden()
+                    }
+
+                    .onGloballyPositioned { coords ->
+                        if (coords.parentLayoutCoordinates == null) return@onGloballyPositioned
+"""
+assert _s.count(_o) == 1
+_card = """                        letTouchesThroughWhenHidden()
+                    }
+                    .drawBehind {
+                        val l = 10.dp.toPx()
+                        val w = size.width - l * 2f
+                        val h = size.height + 6.dp.toPx()
+                        val r = androidx.compose.ui.geometry.CornerRadius(34.dp.toPx(), 34.dp.toPx())
+                        val tl = androidx.compose.ui.geometry.Offset(l, 0f)
+                        val sz = androidx.compose.ui.geometry.Size(w, h)
+                        drawRoundRect(
+                            brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                                listOf(Color(0x40FFFFFF), Color(0x33101A38), Color(0x66050A1C)),
+                                start = androidx.compose.ui.geometry.Offset(l, 0f),
+                                end = androidx.compose.ui.geometry.Offset(l + w, h),
+                            ),
+                            topLeft = tl, size = sz, cornerRadius = r,
+                        )
+                        // soft top-left sheen
+                        drawRoundRect(
+                            brush = androidx.compose.ui.graphics.Brush.radialGradient(
+                                listOf(Color(0x33FFFFFF), Color.Transparent),
+                                center = androidx.compose.ui.geometry.Offset(l + w * 0.18f, h * 0.06f),
+                                radius = w * 0.7f,
+                            ),
+                            topLeft = tl, size = sz, cornerRadius = r,
+                        )
+                        // lit rim
+                        drawRoundRect(
+                            brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                                listOf(Color(0x80FFFFFF), Color(0x1FFFFFFF), Color(0x666ECDFF)),
+                                start = androidx.compose.ui.geometry.Offset(l, 0f),
+                                end = androidx.compose.ui.geometry.Offset(l + w, h),
+                            ),
+                            topLeft = tl, size = sz, cornerRadius = r,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx()),
+                        )
+                    }
+
+                    .onGloballyPositioned { coords ->
+                        if (coords.parentLayoutCoordinates == null) return@onGloballyPositioned
+"""
+_s = _s.replace(_o, _card)
+if 'import androidx.compose.ui.draw.drawBehind' not in _s:
+    _s = _s.replace('\nimport ', '\nimport androidx.compose.ui.draw.drawBehind\nimport ', 1)
+open(_p, 'w').write(_s)
+print('v24 unified player card done')
