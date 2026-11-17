@@ -147,3 +147,15 @@ edit('screens/setup/onboarding/CardMoments.kt', [
     ('Modifier.fillMaxSize().background(Onb.Page))', 'Modifier.fillMaxSize().background(Onb.Page).melodyGlowBackground())'),
 ], [GLOW])
 print('glass surfaces done')
+
+# ---- say plainly that support/donate links go to the upstream Mochy Music developers ----
+soft('screens/update/AboutSheet.kt', [('"Support me please :3 \\u2192"', '"Support the upstream Mochy Music developers \\u2192"')])
+soft('screens/donate/DonateSheet.kt', [
+    ('Here\u2019s a way to support and donate to us!', 'These links support the upstream Mochy Music developers, not Melody.'),
+    ('Support us on Ko-fi', 'Support upstream on Ko-fi'),
+    ('Support us on SociaBuzz', 'Support upstream on SociaBuzz'),
+    ('Support us on Buy Me a Coffee', 'Support upstream on Buy Me a Coffee'),
+])
+soft('screens/donate/SupportSheet.kt', [('useful for us if you support the developer', 'useful for the upstream Mochy Music developers if you support them')])
+soft('screens/update/UpdateSheet.kt', [('"Help us!"', '"Support upstream"')])
+print('upstream labels done')
