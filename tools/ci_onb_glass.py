@@ -263,3 +263,27 @@ _s = _s.replace(_o, """                    } else Modifier.padding(3.dp).glassGe
 _s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.GemBlue\nimport com.mochyy.mochymusic.ui.component.GemTeal\nimport com.mochyy.mochymusic.ui.component.glassGem\nimport ', 1)
 open(_p, 'w').write(_s)
 print('flagship transport done')
+
+# v23: Audio Lab sheet translucent over the navy glow (was solid black); settings rows get gem tiles
+_p = B + 'screens/audiolab/AudioLabPage.kt'
+_s = open(_p).read()
+assert _s.count('private val SheetColor = Color.Black') == 1
+_s = _s.replace('private val SheetColor = Color.Black', 'private val SheetColor = Color(0xB3081326)')
+open(_p, 'w').write(_s)
+_p = B + 'component/Preference.kt'
+_s = open(_p).read()
+_o = """            Box(
+                modifier = Modifier.padding(horizontal = 4.dp),
+            ) {
+                icon()
+            }
+
+            Spacer(Modifier.width(12.dp))"""
+assert _s.count(_o) == 1
+_s = _s.replace(_o, """            GlassIconTile(size = 36.dp, glow = 0.4f) {
+                icon()
+            }
+
+            Spacer(Modifier.width(12.dp))""")
+open(_p, 'w').write(_s)
+print('v23 audiolab sheet + settings tiles done')
