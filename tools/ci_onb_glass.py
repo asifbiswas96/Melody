@@ -362,3 +362,44 @@ if 'import androidx.compose.ui.draw.drawBehind' not in _s:
     _s = _s.replace('\nimport ', '\nimport androidx.compose.ui.draw.drawBehind\nimport ', 1)
 open(_p, 'w').write(_s)
 print('v24 unified player card done')
+
+# v25: Settings main list: category rows and recommended card use the 3D gem tile (were dark tile + pale glyph)
+_p = B + 'screens/settings/MochySettingsScreen.kt'
+_s = open(_p).read()
+_o = """            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFF6ECDFF).copy(alpha = 0.14f))
+                    .border(1.dp, Color(0xFF6ECDFF).copy(alpha = 0.25f), RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint = Color(0xFF9FE3FF),
+                    modifier = Modifier.size(20.dp)
+                )
+            }"""
+assert _s.count(_o) == 1
+_s = _s.replace(_o, """            com.mochyy.mochymusic.ui.component.GlassIconTile(size = 42.dp, glow = 0.5f) {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }""")
+for sz, isz, res in (('38', '18', 'R.drawable.settings'), ('44', '22', 'recommendedItem.iconRes')):
+    _o = """                                    Box(
+                                        modifier = Modifier
+                                            .size(%sdp)
+                                            .clip(CircleShape)
+                                            .background(IconBgColor),
+                                        contentAlignment = Alignment.Center
+                                    ) {""" % (sz + '.')
+    if _s.count(_o) != 1:
+        _o = _o.replace('                                    ', '                                ', 1) if False else _o
+    print('recommended block', sz, _s.count(_o))
+open(_p, 'w').write(_s)
+print('v25 settings category gems done')
