@@ -2,6 +2,10 @@
 # Melody CI: install the debug APK on the emulator, seed a test track, capture
 # Home / Genre / Search / Settings / Library / mini player / Now Playing /
 # dialog screenshots, upload to tmpfiles.
+# v8: sheet detection must not rely on the title strings - they scroll out
+# of the uiautomator dump after one swipe, which faked "dismissed" in v7.
+# Detect by a union of sheet-content strings and keep swipe+tap looping
+# until "no thanks" is actually tapped and all sheet strings are gone.
 # v7: the update sheet's only dismissal is its bottom "no thanks" button -
 # BACK does nothing (custom MenuSheetSurface). Swipe the sheet's scroll
 # column up to reveal the button, then tap it.
@@ -167,20 +171,24 @@ scroll_to_end() {
 # changed on X.Y.Z" appears on launch whenever upstream has a newer version.
 # Prefer a text button if one exists; BACK closes the bottom sheet otherwise.
 dismiss_update_sheet() {
-  for j in 1 2 3 4 5 6 7 8; do
+  for j in $(seq 1 14); do
     dump_strings >/dev/null 2>&1
-    if vis_have_any "Update available" "What changed on"; then
-      echo "UPDATE SHEET: dismissing (attempt $j)"
-      # The sheet's column composes all children even off-screen, so the
-      # button text is always in the dump but its bounds may be beyond the
-      # viewport: try the tap, then swipe the column up to reveal it.
-      if tap_text_vis "no thanks"; then sleep 2; continue; fi
+    # Off-viewport nodes drop out of the uiautomator dump, so the button
+    # becomes tappable only after swipes bring it into view.
+    if tap_text_vis "no thanks"; then
+      sleep 2
+      dump_strings >/dev/null 2>&1
+    fi
+    if vis_have_any "no thanks" "Install here" "Open the web" "Update available" "What changed on" "This update includes" "Tv Version" "Floating Lyrics" "Device integration"; then
+      echo "UPDATE SHEET: still present (attempt $j)"
       adb shell input swipe 540 1900 540 700 400
       sleep 1
     else
+      echo "UPDATE SHEET: gone (attempt $j)"
       return 0
     fi
   done
+  echo 'UPDATE SHEET: could not dismiss in 14 attempts'
   return 0
 }
 # Full relaunch for independent flows. Assumes onboarding already completed
