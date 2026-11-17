@@ -55,6 +55,7 @@ jobs:
           unzip -o 4-melody_full_redesign.zip -d .
           unzip -o 5-melody_glass_chrome.zip -d .
           unzip -o 6-melody_composition.zip -d .
+          python3 tools/ci_menu_tile.py
 
       - name: Build Debug APK
         env:
