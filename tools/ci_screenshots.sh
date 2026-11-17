@@ -227,10 +227,37 @@ relaunch() {
   return 1
 }
 
+# --- v12: after onboarding (done offline), go online with the update notice hidden ----
+# HideUpdateNoticeKey ("hideUpdateNotice") is the app's own preference that makes
+# HomeUpdatePrompt return early. It is appended to the DataStore file as a protobuf
+# map entry (field 1, key 16 bytes, value boolean true); later entries win on parse.
+enable_online_no_sheet() {
+  adb shell am force-stop com.neurobyte.melody.debug
+  sleep 1
+  PKG=com.neurobyte.melody.debug
+  PF=/data/data/$PKG/files/datastore/settings.preferences_pb
+  adb pull $PF /tmp/prefs.bin || echo 'PREF PULL FAIL'
+  printf '\x0a\x16\x0a\x10hideUpdateNotice\x12\x02\x08\x01' > /tmp/hide.bin
+  cat /tmp/prefs.bin /tmp/hide.bin > /tmp/prefs_new.bin
+  adb push /tmp/prefs_new.bin $PF
+  UID_APP=$(adb shell stat -c %u /data/data/$PKG | tr -d '\r')
+  adb shell chown $UID_APP:$UID_APP $PF || true
+  adb shell restorecon $PF || true
+  echo "PREF INJECT: $(wc -c < /tmp/prefs.bin) -> $(wc -c < /tmp/prefs_new.bin) bytes, uid $UID_APP"
+  adb shell cmd connectivity airplane-mode disable || true
+  adb shell settings put global airplane_mode_on 0 || true
+  adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false || true
+  adb shell svc wifi enable || true
+  adb shell svc data enable || true
+  sleep 10
+  if adb shell ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then echo 'NET CHECK 2: online'; else echo 'NET CHECK 2: STILL OFFLINE'; fi
+}
+
 # --- First launch: onboarding once -----------------------------------------
 adb shell monkey -p com.neurobyte.melody.debug -c android.intent.category.LAUNCHER 1
 sleep 20
 for i in $(seq 1 22); do
+  [ "$i" -le 8 ] && shot "ob_$i"
   tap_text "For You" && break
   dump_strings >/dev/null 2>&1
   if vis_have_any "Update available" "What changed on"; then dismiss_update_sheet; dump_strings >/dev/null 2>&1; fi
@@ -251,6 +278,7 @@ for i in $(seq 1 22); do
 done
 sleep 3
 shot 01_home
+enable_online_no_sheet
 
 # --- Flow 08: Home "Try something new" genre page (GenreScreen) -------------
 # The row is randomized per run (Bollywood/Metal/R&B), so tap the stable row
@@ -258,6 +286,13 @@ shot 01_home
 # PlaylistDetail; wide-header pixels remain an open item.
 relaunch
 dump_strings || true
+sleep 10
+shot 01c_home_online
+adb shell input swipe 540 1900 540 700 400
+sleep 2
+shot 01d_home_scrolled
+adb shell input swipe 540 700 540 1900 400
+sleep 1
 if tap_text "Try something new"; then
   sleep 4
   dump_strings || true
@@ -291,12 +326,30 @@ else
   echo 'SEARCH: moods anchor missing offline, frame emitted for visual review'
   shot 05_search_offline
 fi
+relaunch
+tap_exact "Search" || tap_text "Search" || true
+sleep 3
+adb shell input tap 540 984
+sleep 1
+adb shell input text lofi
+adb shell input keyevent 66
+sleep 8
+shot 05c_search_results
 
 # --- Flow 06: Settings via profile -------------------------------------------
 relaunch
 if tap_text "profile"; then
   sleep 3
   dump_strings || true
+  shot 06p_profile
+  if tap_text_vis "About"; then
+    sleep 3
+    shot 06a_about
+    adb shell input keyevent BACK
+    sleep 2
+  else
+    echo 'ABOUT UNVERIFIED: About not tappable from profile'
+  fi
   # Settings row can sit half-hidden at the page bottom; scroll it into view first.
   adb shell input swipe 540 1900 540 900 >/dev/null 2>&1
   sleep 1
@@ -307,10 +360,30 @@ if tap_text "profile"; then
     if vis_have_any "app behaviour" "customisation" "animation speed"; then
       shot 06_settings
       echo 'SETTINGS VERIFIED: unique settings body strings present'
+      for sp in "Audio Lab" "App behaviour" "Customisation" "Storage" "Integrations"; do
+        if tap_text_vis "$sp"; then
+          sleep 3
+          shot "06s_$(echo $sp | tr -d ' ')"
+          adb shell input keyevent BACK
+          sleep 2
+        else
+          echo "SETTINGS SUB UNVERIFIED: $sp not tappable"
+        fi
+      done
       scroll_to_end
       dump_strings || true
       shot 06b_settings_bottom
       echo 'SETTINGS BOTTOM SHOT: true scroll end - verify last rows clear both navs'
+      for sp in "Device integration" "Modules"; do
+        if tap_text_vis "$sp"; then
+          sleep 3
+          shot "06s_$(echo $sp | tr -d ' ')"
+          adb shell input keyevent BACK
+          sleep 2
+        else
+          echo "SETTINGS SUB UNVERIFIED: $sp not tappable"
+        fi
+      done
     else
       echo 'NAV FAIL: Settings screen body not detected - frame not emitted'
     fi
