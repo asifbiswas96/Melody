@@ -187,14 +187,14 @@ _rep('''                holdLabel = "0.5\\u00D7",
                 modifier = Modifier.size(buttonSize)''', '''                holdLabel = "0.5\\u00D7",
                 holdPulseMs = 900L,
                 flagshipGlyph = flagshipGlyph,
-                modifier = Modifier.size(buttonSize).glassGem(RoundedCornerShape(50), GemSky, 0.5f)''')
+                modifier = Modifier.size(buttonSize).glassGem(RoundedCornerShape(50), GemBlue, 0.5f)''')
 _rep('''                holdLabel = "2\\u00D7",
                 holdPulseMs = 420L,
                 flagshipGlyph = flagshipGlyph,
                 modifier = Modifier.size(buttonSize)''', '''                holdLabel = "2\\u00D7",
                 holdPulseMs = 420L,
                 flagshipGlyph = flagshipGlyph,
-                modifier = Modifier.size(buttonSize).glassGem(RoundedCornerShape(50), GemSky, 0.5f)''')
+                modifier = Modifier.size(buttonSize).glassGem(RoundedCornerShape(50), GemBlue, 0.5f)''')
 _rep('''                tint = Color.White,
                 iconSize = iconSize,
                 flagshipGlyph = flagshipGlyph,
@@ -207,7 +207,7 @@ _rep('''                .background(Color(0xFF0E1A38).copy(alpha = 0.62f))
                 .padding(vertical = 10.dp)''', '''                .background(Color(0x66101A30))
                 .border(1.dp, Color(0x40FFFFFF), RoundedCornerShape(50))
                 .padding(vertical = 12.dp)''')
-_s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.GemSky\nimport com.mochyy.mochymusic.ui.component.GemTeal\nimport com.mochyy.mochymusic.ui.component.glassGem\nimport ', 1)
+_s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.GemBlue\nimport com.mochyy.mochymusic.ui.component.GemTeal\nimport com.mochyy.mochymusic.ui.component.glassGem\nimport ', 1)
 open(_p, 'w').write(_s)
 print('player gems done')
 
@@ -230,10 +230,10 @@ _o2 = """                    .clip(CircleShape)
 
                 if (boldIcon) {"""
 assert _s.count(_o2) == 1
-_s = _s.replace(_o2, """                    .glassGem(CircleShape, GemSky, 0.5f)
+_s = _s.replace(_o2, """                    .glassGem(CircleShape, GemBlue, 0.5f)
             ) {
 
                 if (boldIcon) {""")
-_s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.GemSky\nimport com.mochyy.mochymusic.ui.component.glassCard\nimport com.mochyy.mochymusic.ui.component.glassGem\nimport ', 1)
+_s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.GemBlue\nimport com.mochyy.mochymusic.ui.component.glassCard\nimport com.mochyy.mochymusic.ui.component.glassGem\nimport ', 1)
 open(_p, 'w').write(_s)
 print('song card done')
