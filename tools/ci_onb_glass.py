@@ -322,7 +322,7 @@ _card = """                        letTouchesThroughWhenHidden()
                         val l = 10.dp.toPx()
                         val w = size.width - l * 2f
                         val up = controlsDrawShift.toPx() - 6.dp.toPx()
-                        val h = size.height + up + 6.dp.toPx()
+                        val h = size.height + up - 34.dp.toPx()
                         val r = androidx.compose.ui.geometry.CornerRadius(34.dp.toPx(), 34.dp.toPx())
                         val tl = androidx.compose.ui.geometry.Offset(l, -up)
                         val sz = androidx.compose.ui.geometry.Size(w, h)
@@ -404,3 +404,12 @@ for sz, isz, res in (('38', '18', 'R.drawable.settings'), ('44', '22', 'recommen
     print('recommended block', sz, _s.count(_o))
 open(_p, 'w').write(_s)
 print('v25 settings category gems done')
+
+# v27: tighten the player card: the transport row moves up into the empty band and the card bottom follows
+_p = B + 'player/BottomSheetPlayer.kt'
+_s = open(_p).read()
+_o = "                val transportModifier = Modifier\n"
+assert _s.count(_o) == 1
+_s = _s.replace(_o, _o + "                    .offset(y = (-40).dp)\n")
+open(_p, 'w').write(_s)
+print('v27 tighter player card done')
