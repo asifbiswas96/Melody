@@ -397,6 +397,29 @@ if vis_have "melody glass test"; then
       sleep 5
       shot 04f_settled_b
       echo 'NOWPLAYING SETTLED: two frames 3s and 8s after the overlay step, to judge artwork load timing'
+      # v39 player extras: scroll the player, capture each step, open Queue / Lyrics when their label is on screen
+      for k in 1 2 3; do
+        adb shell input swipe 540 1700 540 500 >/dev/null 2>&1
+        sleep 2
+        dump_strings || true
+        shot "04x_player_scroll$k"
+      done
+      for lbl in "Queue" "Up next" "Lyrics"; do
+        dump_strings >/dev/null 2>&1
+        if tap_exact "$lbl" || tap_text "$lbl"; then
+          sleep 3
+          dump_strings || true
+          shot "04q_$(echo $lbl | tr -d ' ')"
+          echo "PLAYER EXTRA SHOT: $lbl tapped by label (destination not asserted)"
+          adb shell input swipe 540 1700 540 700 >/dev/null 2>&1
+          sleep 2
+          shot "04q_$(echo $lbl | tr -d ' ')_scrolled"
+          adb shell input keyevent BACK
+          sleep 2
+        else
+          echo "PLAYER EXTRA UNVERIFIED: no '$lbl' label on player"
+        fi
+      done
       # Assert the real player with unique strings inside an 8s window; emit
       # 04 only when the assertion passes.
       shot 04b_nowplaying_after
@@ -514,6 +537,21 @@ sub_visit() {
         dump_strings || true
         shot "06s_$(echo $sp | tr -d ' ')_end"
         echo "SUB END SHOT: $sp true scroll end - verify last row clears mini player and nav"
+        if [ "$sp" = "Storage" ]; then
+          adb shell input swipe 540 600 540 1700 >/dev/null 2>&1
+          adb shell input swipe 540 600 540 1700 >/dev/null 2>&1
+          sleep 1
+          if tap_regex "(?i)download"; then
+            sleep 3
+            dump_strings || true
+            shot "06s_Storage_downloads"
+            echo "DOWNLOADS SHOT: tapped a download entry on Storage (destination not asserted)"
+            adb shell input keyevent BACK
+            sleep 2
+          else
+            echo "DOWNLOADS UNVERIFIED: no download label on Storage page"
+          fi
+        fi
       fi
     else
       echo "SUB NAV FAIL: $sp opened something else - anchor missing; frame below is labeled unverified"
@@ -526,6 +564,43 @@ sub_visit() {
     echo "SETTINGS SUB UNVERIFIED: $sp not reachable above overlays"
   fi
 }
+# --- v39 fixture: create a playlist in the isolated emulator (Songs row long-press > Add to playlist > Create playlist)
+relaunch
+tap_text "Library" || true
+sleep 2
+tap_exact "Songs" || tap_text "Songs" || true
+sleep 3
+dump_strings || true
+if refresh && XY=$(python3 /tmp/tap.py "Melody Glass Test"); then
+  set -- $XY
+  adb shell input swipe $1 $2 $1 $2 900
+  sleep 3
+  dump_strings || true
+  shot 10a_song_menu
+  if tap_text "Add to playlist"; then
+    sleep 3
+    dump_strings || true
+    shot 10b_add_to_playlist
+    if tap_text "Create playlist" || tap_text "New playlist"; then
+      sleep 3
+      dump_strings || true
+      shot 10c_create_playlist
+      adb shell input text "Glass_Mix"
+      sleep 1
+      tap_exact "Create" || tap_exact "Done" || tap_exact "OK" || tap_exact "Save" || tap_text "Create" || true
+      sleep 3
+      dump_strings || true
+      shot 10d_after_create
+      echo "PLAYLIST FIXTURE: attempted create (verify via Playlists page frames)"
+    else
+      echo "PLAYLIST FIXTURE UNVERIFIED: no Create playlist entry"
+    fi
+  else
+    echo "PLAYLIST FIXTURE UNVERIFIED: no Add to playlist in song menu"
+  fi
+else
+  echo "PLAYLIST FIXTURE UNVERIFIED: song row not found"
+fi
 # --- v34 coverage: library category pages and their first item --------------
 for cat in Albums Artists Playlists; do
   relaunch
@@ -537,7 +612,7 @@ for cat in Albums Artists Playlists; do
     dump_strings || true
     shot "09_lib_$cat"
     echo "LIB CATEGORY SHOT: $cat page (destination not text-verified)"
-    case "$cat" in Albums) adb shell input tap 300 950;; Artists) adb shell input tap 540 830;; *) adb shell input tap 540 650;; esac
+    case "$cat" in Albums) adb shell input tap 300 950;; Artists) adb shell input tap 540 830;; *) tap_text "Glass Mix" || tap_text "Glass_Mix" || adb shell input tap 540 650;; esac
     sleep 3
     dump_strings || true
     shot "09_lib_${cat}_item"
