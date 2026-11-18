@@ -565,11 +565,6 @@ if refresh && XY=$(python3 /tmp/tap.py "Melody Glass Test"); then
   sleep 3
   dump_strings || true
   shot 10a_song_menu
-  scroll_to_end
-  dump_strings || true
-  shot 10a_song_menu_end
-  echo "SONG MENU END SHOT: true end of the song menu - verify last row clears system nav"
-  for _i in 1 2 3 4; do adb shell input swipe 540 700 540 1500 >/dev/null 2>&1; done
   if tap_exact "Add"; then
     sleep 3
     dump_strings || true
@@ -685,88 +680,7 @@ fi
 # --- v14: upload the offline frames first, then run the online flows LAST ---
 echo "### Screenshots (offline phase)" >> "$GITHUB_STEP_SUMMARY"
 upload_shots
-enable_online_no_sheet
-# --- Flow 08: Home "Try something new" genre page (GenreScreen) -------------
-# The row is randomized per run (Bollywood/Metal/R&B), so tap the stable row
-# header and validate the destination. This is a GENRE page, not the shared
-# PlaylistDetail; wide-header pixels remain an open item.
-relaunch
-dump_strings || true
-sleep 10
-shot 01c_home_online
-dump_strings || true
-if tap_text "Try something new" || tap_text "Folk" || tap_text "Bollywood" || tap_text "Metal"; then
-  sleep 4
-  dump_strings || true
-  if vis_have_any "Add to library" "songs" "genre"; then
-    shot 08_genre
-    echo 'GENRE VERIFIED: Home content opened a genre detail page'
-    scroll_to_end
-    dump_strings || true
-    shot 08b_genre_bottom
-    echo 'GENRE BOTTOM SHOT: true scroll end - verify last row clears the nav bar'
-    # open a card from the genre page to reach the shared playlist detail page
-    adb shell input swipe 540 600 540 1700 300
-    sleep 2
-    dump_strings || true
-    adb shell input tap 540 1100
-    sleep 4
-    dump_strings || true
-    shot 08c_after_card
-  else
-    echo 'GENRE UNVERIFIED: no detail strings after Home card tap'
-  fi
-else
-  echo 'GENRE UNVERIFIED: Try-something-new row not tappable on Home'
-fi
-
-# --- Flow 05: Search + true-scroll-end bottom --------------------------------
-relaunch
-tap_exact "Search" || tap_text "Search" || true
-sleep 3
-dump_strings || true
-if vis_have "moods"; then
-  shot 05_search
-  echo 'SEARCH VERIFIED: moods anchor present'
-  scroll_to_end
-  dump_strings || true
-  shot 05b_search_bottom
-  echo 'SEARCH BOTTOM SHOT: true scroll end - verify last genre row clears the nav bar'
-else
-  echo 'SEARCH: moods anchor missing offline, frame emitted for visual review'
-  shot 05_search_offline
-fi
-relaunch
-tap_exact "Search" || tap_text "Search" || true
-sleep 3
-tap_text "Search for tracks" || adb shell input tap 440 400
-sleep 1
-adb shell input text lofi
-adb shell input keyevent 66
-sleep 8
-shot 05c_search_results
-
-
-echo "### Screenshots (online phase)" >> "$GITHUB_STEP_SUMMARY"
-upload_shots
-
-# --- v20: Device integration LAST: the emulator process vanished on this page in v14 and v19 ---
-relaunch
-if tap_text "profile"; then
-  sleep 3
-  for _i in 1 2 3; do adb shell input swipe 540 1500 540 700 >/dev/null 2>&1; sleep 1; done
-  if tap_text "Open settings"; then
-    sleep 3
-    scroll_to_end
-    echo 'DEVICE INTEGRATION: attempting last; if the emulator drops after this line it is page-specific'
-    sub_visit "Device integration"
-  else
-    echo 'NAV FAIL: Open settings (device integration phase)'
-  fi
-fi
-echo "### Screenshots (device integration phase)" >> "$GITHUB_STEP_SUMMARY"
-upload_shots
-
+# v44: focused run, the online phase (genre, search, device integration) is skipped; those screens were captured in earlier runs
 # --- v43: player extras LAST: the emulator process vanished during these player swipes in two runs ---
 relaunch
 tap_text "Library" || true
