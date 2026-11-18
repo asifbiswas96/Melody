@@ -542,6 +542,11 @@ for cat in Albums Artists Playlists; do
     dump_strings || true
     shot "09_lib_${cat}_item"
     echo "LIB ITEM SHOT: $cat first item tap at fixed position (not text-verified)"
+    adb shell input swipe 540 1700 540 600 >/dev/null 2>&1
+    sleep 2
+    shot "09_lib_${cat}_item2"
+    scroll_to_end
+    shot "09_lib_${cat}_item_end"
     adb shell input keyevent BACK
     sleep 1
   else
