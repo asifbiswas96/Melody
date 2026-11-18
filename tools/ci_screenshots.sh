@@ -329,9 +329,53 @@ done
 sleep 3
 shot 01_home
 
+# --- Flow 02/03/04: import + player ------------------------------------------
+relaunch
+PLAYER_OK=0
+if tap_text "Library"; then
+  sleep 3
+else
+  echo 'NAV FAIL: Library tab'
+fi
+dump_strings || true
+
+if vis_have "local"; then
+  tap_exact "Local" || tap_text "Local" || true
+  sleep 2
+  dump_strings || true
+  if vis_have "import your local music here"; then
+    tap_text "Import your local music here" || true
+    sleep 8
+    dump_strings || true
+    # The actionable button is "Add N song(s)" - never the "Add music" sheet title.
+    if tap_regex 'add [0-9]+ song'; then
+      echo 'SHEET BUTTON: Add N song(s) tapped via regex node match'
+      sleep 8
+    elif vis_have "looking for music"; then
+      echo 'ASSERT FAIL: sheet still scanning after 8s'
+    elif vis_have "done"; then
+      echo 'IMPORT SHEET: scan found no new songs (button = Done)'
+      tap_exact "Done" || true
+    else
+      echo 'ASSERT FAIL: Add-music sheet rendered no actionable button'
+    fi
+  else
+    echo 'ASSERT FAIL: Local tab did not show the import card'
+  fi
+  adb shell input keyevent BACK || true
+  sleep 2
+  tap_exact "All" || tap_text "All" || true
+  sleep 2
+else
+  echo 'ASSERT FAIL: no Local chip on Library screen'
+fi
+shot 02_library
+dump_strings || true
+
+
 # --- v46 DIRECT PLAYER: state-gated gestures + read-only audio diagnostics, then stop (no tour) ---
 on_player() {
-  dump_strings >/dev/null 2>&1 || return 1
+  dump_strings >/dev/null 2>&1 || { sleep 2; dump_strings >/dev/null 2>&1; } || return 1
   python3 - <<'PYEOF'
 import re, sys
 d = open('/tmp/ui_dump.xml').read()
@@ -385,6 +429,15 @@ tap_text "Library" || true
 sleep 2
 tap_exact "Songs" || tap_text "Songs" || true
 sleep 3
+dump_strings || true
+if ! vis_have "melody glass test"; then
+  echo "GATE FAIL: no seeded song (Melody Glass Test) in the Songs list; library import produced nothing"
+  shot d00_no_songs
+  echo "### Screenshots (direct player)" >> "$GITHUB_STEP_SUMMARY"
+  upload_shots
+  exit 0
+fi
+echo "LIB GATE: seeded song visible, count of m:ss rows not asserted"
 tap_text "Melody Glass Test" || true
 sleep 4
 adb shell input tap 400 1978
@@ -430,49 +483,6 @@ fi
 echo "### Screenshots (direct player)" >> "$GITHUB_STEP_SUMMARY"
 upload_shots
 exit 0
-
-# --- Flow 02/03/04: import + player ------------------------------------------
-relaunch
-PLAYER_OK=0
-if tap_text "Library"; then
-  sleep 3
-else
-  echo 'NAV FAIL: Library tab'
-fi
-dump_strings || true
-
-if vis_have "local"; then
-  tap_exact "Local" || tap_text "Local" || true
-  sleep 2
-  dump_strings || true
-  if vis_have "import your local music here"; then
-    tap_text "Import your local music here" || true
-    sleep 8
-    dump_strings || true
-    # The actionable button is "Add N song(s)" - never the "Add music" sheet title.
-    if tap_regex 'add [0-9]+ song'; then
-      echo 'SHEET BUTTON: Add N song(s) tapped via regex node match'
-      sleep 8
-    elif vis_have "looking for music"; then
-      echo 'ASSERT FAIL: sheet still scanning after 8s'
-    elif vis_have "done"; then
-      echo 'IMPORT SHEET: scan found no new songs (button = Done)'
-      tap_exact "Done" || true
-    else
-      echo 'ASSERT FAIL: Add-music sheet rendered no actionable button'
-    fi
-  else
-    echo 'ASSERT FAIL: Local tab did not show the import card'
-  fi
-  adb shell input keyevent BACK || true
-  sleep 2
-  tap_exact "All" || tap_text "All" || true
-  sleep 2
-else
-  echo 'ASSERT FAIL: no Local chip on Library screen'
-fi
-shot 02_library
-dump_strings || true
 
 # The imported song lives under the Songs category, not on the All grid:
 # navigate Library > Songs first, validate the destination, then tap the row.
