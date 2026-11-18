@@ -85,7 +85,11 @@ adb logcat -c >/dev/null 2>&1 || true
 ( adb logcat -v time > /tmp/lc_all.txt 2>&1 & ) 
 diag_tail() {
   echo "### LOGCAT DIAG (crash/ANR/memory lines)"
-  grep -aE "FATAL EXCEPTION|ANR in|Fatal signal|OutOfMemory|lowmemorykiller|Process .* has died|am_proc_died|am_crash|GPU|swiftshader|Out of memory" /tmp/lc_all.txt 2>/dev/null | tail -25 | cut -c1-220
+  grep -aE "FATAL EXCEPTION|ANR in|Fatal signal|OutOfMemory|lowmemorykiller|Process .* has died|am_proc_died|am_crash|Out of memory" /tmp/lc_all.txt 2>/dev/null | tail -25 | cut -c1-220
+  echo "### CRASH STACKS (50 lines after each FATAL)"
+  grep -a -A50 "FATAL EXCEPTION" /tmp/lc_all.txt 2>/dev/null | cut -c1-240 | head -200
+  echo "### CRASH BUFFER"
+  adb logcat -b crash -d 2>/dev/null | cut -c1-240 | head -120
   echo "### LOGCAT LAST LINES"
   tail -12 /tmp/lc_all.txt 2>/dev/null | cut -c1-220
 }
@@ -593,33 +597,51 @@ if refresh && XY=$(python3 /tmp/tap.py "Melody Glass Test"); then
 else
   echo "PLAYLIST FIXTURE UNVERIFIED: song row not found"
 fi
-# --- v34 coverage: library category pages and their first item --------------
-for cat in Albums Artists Playlists; do
-  relaunch
-  tap_text "Library" || true
-  sleep 2
-  dump_strings || true
-  if tap_exact "$cat" || tap_text "$cat"; then
+# --- v45: put a song into Glass_Mix, then open the populated playlist detail ---
+relaunch
+tap_text "Library" || true
+sleep 2
+tap_exact "Songs" || tap_text "Songs" || true
+sleep 3
+dump_strings || true
+if refresh && XY=$(python3 /tmp/tap.py "Melody Glass Test"); then
+  set -- $XY
+  adb shell input swipe $1 $2 $1 $2 900
+  sleep 3
+  if tap_exact "Add"; then
     sleep 3
     dump_strings || true
-    shot "09_lib_$cat"
-    echo "LIB CATEGORY SHOT: $cat page (destination not text-verified)"
-    case "$cat" in Albums) adb shell input tap 300 950;; Artists) adb shell input tap 540 830;; *) tap_text "Glass Mix" || tap_text "Glass_Mix" || adb shell input tap 540 650;; esac
+    if tap_text "Glass_Mix"; then
+      sleep 3
+      dump_strings || true
+      shot 10e_added_to_playlist
+      echo "PLAYLIST INSERT: tapped Glass_Mix row in Add-to-playlist list"
+    else
+      echo "PLAYLIST INSERT UNVERIFIED: no Glass_Mix row"
+    fi
+  else
+    echo "PLAYLIST INSERT UNVERIFIED: no Add in song menu"
+  fi
+fi
+relaunch
+tap_text "Library" || true
+sleep 2
+if tap_exact "Playlists" || tap_text "Playlists"; then
+  sleep 3
+  if tap_text "Glass_Mix" || tap_text "Glass Mix"; then
     sleep 3
     dump_strings || true
-    shot "09_lib_${cat}_item"
-    echo "LIB ITEM SHOT: $cat first item tap at fixed position (not text-verified)"
+    shot 09_playlist_detail_populated
+    echo "PLAYLIST DETAIL SHOT: populated detail (check song count in strings above)"
     adb shell input swipe 540 1700 540 600 >/dev/null 2>&1
     sleep 2
-    shot "09_lib_${cat}_item2"
+    shot 09_playlist_detail_populated_2
     scroll_to_end
-    shot "09_lib_${cat}_item_end"
-    adb shell input keyevent BACK
-    sleep 1
+    shot 09_playlist_detail_populated_end
   else
-    echo "LIB CATEGORY UNVERIFIED: $cat not tappable"
+    echo "PLAYLIST DETAIL UNVERIFIED: Glass_Mix row not found"
   fi
-done
+fi
 # --- Flow 06: Settings via profile -------------------------------------------
 relaunch
 if tap_text "profile"; then
@@ -681,7 +703,10 @@ fi
 echo "### Screenshots (offline phase)" >> "$GITHUB_STEP_SUMMARY"
 upload_shots
 # v44: focused run, the online phase (genre, search, device integration) is skipped; those screens were captured in earlier runs
-# --- v43: player extras LAST: the emulator process vanished during these player swipes in two runs ---
+# --- v45: bounded player diagnostics (crash stacks so far, media position vs duration, queue/lyrics routes) ---
+echo "### CRASH EXCERPT AFTER SETTINGS"
+grep -a -A40 "FATAL EXCEPTION" /tmp/lc_all.txt 2>/dev/null | cut -c1-240 | head -120
+for n in 1 2 3; do echo "SEED DURATION test$n: $(ffprobe -v error -show_entries format=duration -of csv=p=0 /tmp/seed/test$n.mp3 2>&1)"; done
 relaunch
 tap_text "Library" || true
 sleep 2
@@ -694,74 +719,46 @@ if tap_text "Melody Glass Test"; then
   dump_strings || true
   if vis_have "got it"; then tap_text "Got it" || tap_text "GOT IT" || true; sleep 3; fi
   shot 04z_player_open
-      # v39 player extras: scroll the player, capture each step, open Queue / Lyrics when their label is on screen
-      for k in 1 2 3; do
-        adb shell input swipe 540 1700 540 500 >/dev/null 2>&1
-        sleep 2
-        dump_strings || true
-        shot "04x_player_scroll$k"
-      done
-      cat > /tmp/tap_desc.py <<'TDEOF'
-import sys, re, xml.etree.ElementTree as ET
-pat = re.compile(sys.argv[1], re.I)
-for node in ET.parse('/tmp/ui.xml').iter('node'):
-    d = (node.get('content-desc') or '').strip()
-    if d and pat.search(d):
-        m = re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.get('bounds') or '')
-        if m:
-            l, t, r_, b = map(int, m.groups())
-            print((l + r_) // 2, (t + b) // 2); sys.exit(0)
-sys.exit(1)
-TDEOF
-      adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1
-      echo "PLAYER DESCS: $(python3 -c "import re;print(' | '.join(sorted(set(re.findall(r'content-desc=\"([^\"]{2,40})\"', open('/tmp/ui.xml').read())))))")"
-      for dsc in "queue|up next" "lyrics" "expand|more|menu|options"; do
-        adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1
-        if XYD=$(python3 /tmp/tap_desc.py "$dsc"); then
-          adb shell input tap $XYD
-          sleep 3
-          dump_strings || true
-          shot "04d_$(echo $dsc | tr -c 'a-z' '_')"
-          echo "PLAYER DESC SHOT: tapped content-desc /$dsc/ (destination not asserted)"
-          adb shell input swipe 540 1700 540 700 >/dev/null 2>&1
-          sleep 2
-          shot "04d_$(echo $dsc | tr -c 'a-z' '_')_scrolled"
-          adb shell input keyevent BACK
-          sleep 2
-        else
-          echo "PLAYER DESC UNVERIFIED: no content-desc /$dsc/"
-        fi
-      done
-      # position sampling: log the visible m:ss strings once a second, to tell a clock artifact from a real overshoot
-      for k in $(seq 1 14); do
-        adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui_dump.xml >/dev/null 2>&1
-        echo "CLOCK SAMPLE $k: $(python3 -c "import re;print(' '.join(re.findall(r'text=\"(-?[0-9]+:[0-9]{2})\"', open('/tmp/ui_dump.xml').read())), ' | ', ' / '.join(re.findall(r'text=\"(Melody [^\"]{0,30})\"', open('/tmp/ui_dump.xml').read())[:2]))")"
-        sleep 1
-      done
-      for lbl in "Queue" "Lyrics"; do
-        adb shell input tap 909 1367
-        sleep 2
-        dump_strings || true
-        shot "04m_chevron_menu_$lbl"
-        echo "PLAYER CHEVRON: tapped chevron at 909,1367 (fixed position, not text-verified) for $lbl"
-        if tap_exact "$lbl" || tap_text "$lbl"; then
-          sleep 3
-          dump_strings || true
-          shot "04q_$(echo $lbl | tr -d ' ')"
-          echo "PLAYER EXTRA SHOT: $lbl tapped by label (destination not asserted)"
-          adb shell input swipe 540 1700 540 700 >/dev/null 2>&1
-          sleep 2
-          shot "04q_$(echo $lbl | tr -d ' ')_scrolled"
-          adb shell input swipe 540 1500 540 2100 >/dev/null 2>&1
-          sleep 2
-        else
-          echo "PLAYER EXTRA UNVERIFIED: no '$lbl' label on player"
-        fi
-      done
-      # Assert the real player with unique strings inside an 8s window; emit
-      # 04 only when the assertion passes.
+  media_probe() {
+    echo "MEDIA PROBE $1: $(adb shell dumpsys media_session 2>/dev/null | grep -aE 'state=PlaybackState|metadata:' | head -4 | tr '\n' ' ' | cut -c1-420)"
+    echo "MEDIA DURATION $1: $(adb shell dumpsys media_session 2>/dev/null | grep -aoE 'android.media.metadata.DURATION[^,]{0,30}' | head -2 | tr '\n' ' ')"
+    adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui_dump.xml >/dev/null 2>&1
+    echo "CLOCK SAMPLE $1: $(python3 -c "import re;d=open('/tmp/ui_dump.xml').read();print(' '.join(re.findall(r'text=\"(-?[0-9]+:[0-9]{2})\"', d)), ' | ', ' / '.join(re.findall(r'text=\"(Melody [^\"]{0,30})\"', d)[:2]))")"
+  }
+  for k in 1 2 3 4 5 6 7 8; do media_probe $k; sleep 3; done
+  # route 1: chevron menu, then its "Other menu" row
+  adb shell input tap 909 1367
+  sleep 2
+  dump_strings || true
+  shot 04m_chevron_menu
+  if tap_text "Other menu"; then
+    sleep 3
+    dump_strings || true
+    shot 04n_other_menu
+    echo "PLAYER ROUTE: tapped Other menu from chevron menu"
+    adb shell input keyevent BACK
+    sleep 2
+  fi
+  adb shell input keyevent BACK
+  sleep 2
+  # route 2: slow swipe up starting on the card below the seek bar (PULL), then on the bottom strip
+  adb shell input swipe 540 1480 540 700 500
+  sleep 3
+  dump_strings || true
+  shot 04r_swipe_card
+  echo "PLAYER ROUTE: slow swipe up from the card (540,1480)"
+  adb shell input swipe 540 2300 540 800 500
+  sleep 3
+  dump_strings || true
+  shot 04s_swipe_strip
+  echo "PLAYER ROUTE: slow swipe up from the bottom strip (540,2300)"
+  adb shell input swipe 540 2300 540 800 500
+  sleep 3
+  dump_strings || true
+  shot 04t_swipe_strip_again
+  media_probe 9
 else
-  echo 'PLAYER EXTRAS UNVERIFIED: song row not tappable in last phase'
+  echo 'PLAYER DIAG UNVERIFIED: song row not tappable'
 fi
 echo "### Screenshots (player extras phase)" >> "$GITHUB_STEP_SUMMARY"
 upload_shots
