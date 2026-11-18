@@ -329,6 +329,108 @@ done
 sleep 3
 shot 01_home
 
+# --- v46 DIRECT PLAYER: state-gated gestures + read-only audio diagnostics, then stop (no tour) ---
+on_player() {
+  dump_strings >/dev/null 2>&1 || return 1
+  python3 - <<'PYEOF'
+import re, sys
+d = open('/tmp/ui_dump.xml').read()
+t = re.findall(r'text="([^"]{1,60})"', d)
+times = [x for x in t if re.fullmatch(r'-?\d+:\d\d', x)]
+bad = [x for x in t if x in ('Search your library', 'Library', 'Songs', 'For You')]
+sys.exit(0 if len(times) >= 2 and not bad else 1)
+PYEOF
+}
+on_page() {
+  dump_strings >/dev/null 2>&1 || return 1
+  python3 - <<'PYEOF'
+import re, sys
+d = open('/tmp/ui_dump.xml').read()
+t = ' | '.join(re.findall(r'text="([^"]{1,60})"', d)).lower()
+sys.exit(0 if ('up next' in t or 'queue' in t or 'lyrics' in t) and 'search your library' not in t else 1)
+PYEOF
+}
+ensure_player() {
+  for _a in 1 2 3; do
+    if on_player; then return 0; fi
+    adb shell input tap 400 1978; sleep 3
+    dump_strings >/dev/null 2>&1 || true
+    if vis_have "got it"; then tap_text "Got it" || tap_text "GOT IT" || true; sleep 3; fi
+  done
+  on_player
+}
+media_state() {
+  echo "MEDIA STATE $1: $(adb shell dumpsys media_session 2>/dev/null | grep -aoE 'state=PlaybackState \{state=[A-Z_]+\([0-9]\), position=[0-9]+, buffered position=[0-9]+, speed=[0-9.]+' | head -1)"
+}
+gesture() {
+  # $1 label, rest: adb input args. Gate on the player first; never swipe Library.
+  lbl=$1; shift
+  if ensure_player; then
+    shot "g_${lbl}_before"
+    adb shell input "$@"
+    sleep 3
+    dump_strings || true
+    shot "g_${lbl}_after"
+    if on_page; then echo "ROUTE RESULT $lbl: queue/lyrics-type page strings present"; else echo "ROUTE RESULT $lbl: no queue/lyrics strings after gesture"; fi
+  else
+    echo "GATE FAIL $lbl: player not on screen after 3 attempts, gesture skipped (this does NOT show the page is absent)"
+    shot "g_${lbl}_gatefail"
+  fi
+}
+close_page() {
+  if on_page && ! on_player; then adb shell input swipe 540 600 540 1700 500; sleep 3; fi
+}
+relaunch
+tap_text "Library" || true
+sleep 2
+tap_exact "Songs" || tap_text "Songs" || true
+sleep 3
+tap_text "Melody Glass Test" || true
+sleep 4
+adb shell input tap 400 1978
+sleep 3
+dump_strings || true
+if vis_have "got it"; then tap_text "Got it" || tap_text "GOT IT" || true; sleep 3; fi
+media_state start
+if ensure_player; then
+  echo "DIRECT PLAYER: player gate passed"
+  shot d00_player
+  gesture card_swipe swipe 540 1480 540 700 500
+  close_page
+  gesture strip_swipe swipe 540 2300 540 800 500
+  close_page
+  if ensure_player; then
+    adb shell input tap 909 1367; sleep 2
+    dump_strings || true
+    shot d03_chevron_menu
+    if tap_text "Other menu"; then sleep 3; dump_strings || true; shot d04_other_menu; echo "ROUTE: Other menu tapped (strings dumped above)"; else echo "ROUTE: Other menu row not found by text"; fi
+  else
+    echo "GATE FAIL chevron: player not on screen"
+  fi
+  # read-only diagnostics once the last item passes its duration
+  for k in $(seq 1 16); do
+    media_state "wait$k"
+    P=$(adb shell dumpsys media_session 2>/dev/null | grep -aoE 'position=[0-9]+' | head -1 | cut -d= -f2)
+    if [ -n "$P" ] && [ "$P" -gt 24000 ]; then echo "END DIAG: position $P ms"; break; fi
+    sleep 5
+  done
+  media_state end
+  echo "### AUDIO FLINGER (read-only)"
+  adb shell dumpsys media.audio_flinger 2>&1 | grep -aE "Output thread|Standby|Tracks of|Active|state|Frames|Underruns|Mixer" | head -50 | cut -c1-200
+  echo "### MEDIA SESSION (read-only)"
+  adb shell dumpsys media_session 2>&1 | grep -aE "PlaybackState|metadata|active=|Sessions Stack" | head -12 | cut -c1-300
+  echo "### MEDIA PLAYER"
+  adb shell dumpsys media.player 2>&1 | head -25 | cut -c1-200
+  ensure_player || true
+  shot d99_player_end
+else
+  echo "GATE FAIL: player never reached, diagnostics skipped"
+  shot d00_gatefail
+fi
+echo "### Screenshots (direct player)" >> "$GITHUB_STEP_SUMMARY"
+upload_shots
+exit 0
+
 # --- Flow 02/03/04: import + player ------------------------------------------
 relaunch
 PLAYER_OK=0
