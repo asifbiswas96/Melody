@@ -509,14 +509,16 @@ sub_visit() {
     if vis_have_any "$(sub_anchor "$sp")"; then
       shot "06s_$(echo $sp | tr -d ' ')"
       echo "SUB VERIFIED: $sp destination anchor present"
-      if [ "$sp" = "Storage" ]; then
+      if [ -n "$sp" ]; then
         scroll_to_end
         dump_strings || true
-        shot 06s_Storage_end
-        echo 'STORAGE END SHOT: verify last row clears mini player and nav'
+        shot "06s_$(echo $sp | tr -d ' ')_end"
+        echo "SUB END SHOT: $sp true scroll end - verify last row clears mini player and nav"
       fi
     else
-      echo "SUB NAV FAIL: $sp opened something else - frame not emitted"
+      echo "SUB NAV FAIL: $sp opened something else - anchor missing; frame below is labeled unverified"
+      shot "06s_$(echo $sp | tr -d ' ')_unverified"
+      echo "SUB DUMP: $(vis_set | tr '\n' '|' | head -c 500)"
     fi
     adb shell input keyevent BACK
     sleep 2
@@ -524,6 +526,28 @@ sub_visit() {
     echo "SETTINGS SUB UNVERIFIED: $sp not reachable above overlays"
   fi
 }
+# --- v34 coverage: library category pages and their first item --------------
+for cat in Albums Artists Playlists; do
+  relaunch
+  tap_text "Library" || true
+  sleep 2
+  dump_strings || true
+  if tap_exact "$cat" || tap_text "$cat"; then
+    sleep 3
+    dump_strings || true
+    shot "09_lib_$cat"
+    echo "LIB CATEGORY SHOT: $cat page (destination not text-verified)"
+    adb shell input tap 540 650
+    sleep 3
+    dump_strings || true
+    shot "09_lib_${cat}_item"
+    echo "LIB ITEM SHOT: $cat first item tap at fixed position (not text-verified)"
+    adb shell input keyevent BACK
+    sleep 1
+  else
+    echo "LIB CATEGORY UNVERIFIED: $cat not tappable"
+  fi
+done
 # --- Flow 06: Settings via profile -------------------------------------------
 relaunch
 if tap_text "profile"; then
