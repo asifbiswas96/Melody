@@ -12,6 +12,9 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
+// Melody updates come from Melody's own releases, never from upstream Mochy (different app id).
+const val UpdateOwner = "asifbiswas96"
+const val UpdateRepo = "Melody"
 const val GithubOwner = "realidkroo"
 const val GithubRepo = "Mochy-Music"
 
@@ -24,7 +27,7 @@ const val ThreadsUrl = "https://www.threads.net/@furfurrfoxx"
 const val DiscordUrl = "https://discord.gg/NTmqVphbRY"
 
 private const val ReleasesApi =
-    "https://api.github.com/repos/$GithubOwner/$GithubRepo/releases?per_page=20"
+    "https://api.github.com/repos/$UpdateOwner/$UpdateRepo/releases?per_page=20"
 
 data class GithubRelease(
     val title: String,
@@ -152,7 +155,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
             connectTimeout = 12_000
             readTimeout = 12_000
             setRequestProperty("Accept", "application/vnd.github+json")
-            setRequestProperty("User-Agent", "mochy-android")
+            setRequestProperty("User-Agent", "melody-android")
         }
         val json = connection.inputStream.bufferedReader().use { it.readText() }
         val releases = JSONArray(json)
@@ -225,7 +228,7 @@ private suspend fun fetchReleases(): Result<List<ParsedRelease>> = withContext(D
                             tag = tag,
                             version = displayVersion,
                             body = release.optString("body").orEmpty(),
-                            htmlUrl = release.optString("html_url").orEmpty().ifBlank { "$GithubRepoUrl/releases" },
+                            htmlUrl = release.optString("html_url").orEmpty().ifBlank { "https://github.com/$UpdateOwner/$UpdateRepo/releases" },
                             apkUrl = apkUrl,
                             apkName = apkName,
                             apkSizeBytes = apkSize,
@@ -264,7 +267,7 @@ suspend fun downloadApk(
             connectTimeout = 15_000
             readTimeout = 30_000
             instanceFollowRedirects = true
-            setRequestProperty("User-Agent", "mochy-android")
+            setRequestProperty("User-Agent", "melody-android")
         }
         val total = release.apkSizeBytes.takeIf { it > 0 }
             ?: connection.contentLengthLong.takeIf { it > 0 }
