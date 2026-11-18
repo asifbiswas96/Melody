@@ -544,3 +544,129 @@ _sub('screens/update/VersionRing.kt', [
     ('textColor: Color = Color.White.copy(alpha = 0.3f),', 'textColor: Color = Color(0xFF6ECDFF).copy(alpha = 0.38f),'),
 ])
 print('v33c done')
+
+# v34: replace (not recolor) the upstream compositions: version ring art, audio lab sketches, cover-rounding sample, id card layout.
+_SR = 'screens/update/VersionRing.kt'
+_t = open(B + _SR).read()
+assert _t.count('fun VersionRing(') == 1
+_t = _t.replace('fun VersionRing(', 'fun VersionRingOld(')
+_t += """
+
+/** glass orbs behind the version: two soft glows and a frosted edge, fading as the sheet scrolls; it carries no text */
+@Composable
+fun VersionRing(
+    text: String,
+    modifier: Modifier = Modifier,
+    scrollProgress: () -> Float = { 0f },
+    radius: androidx.compose.ui.unit.Dp = 140.dp,
+    band: androidx.compose.ui.unit.Dp = 46.dp,
+    ringColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.White,
+    textColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.White,
+    turnMillis: Int = 26_000,
+) {
+    androidx.compose.foundation.layout.Box(
+        modifier
+            .size(radius * 2)
+            .graphicsLayer { alpha = (1f - scrollProgress()).coerceIn(0f, 1f) }
+            .drawBehind {
+                val c = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+                val r = size.minDimension / 2f
+                drawCircle(
+                    androidx.compose.ui.graphics.Brush.radialGradient(
+                        listOf(androidx.compose.ui.graphics.Color(0x556ECDFF), androidx.compose.ui.graphics.Color(0x00031020)),
+                        center = c, radius = r,
+                    ), r, c,
+                )
+                val c2 = androidx.compose.ui.geometry.Offset(c.x + r * 0.35f, c.y + r * 0.3f)
+                drawCircle(
+                    androidx.compose.ui.graphics.Brush.radialGradient(
+                        listOf(androidx.compose.ui.graphics.Color(0x4435D6C0), androidx.compose.ui.graphics.Color(0x0035D6C0)),
+                        center = c2, radius = r * 0.6f,
+                    ), r * 0.6f, c2,
+                )
+                drawCircle(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.10f), r * 0.78f, c, style = androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx()))
+            },
+    ) {}
+}
+"""
+for _imp in ('import androidx.compose.foundation.layout.size', 'import androidx.compose.ui.draw.drawBehind', 'import androidx.compose.ui.graphics.graphicsLayer', 'import androidx.compose.ui.unit.dp'):
+    if _imp not in _t:
+        _k = _t.index('\nimport ')
+        _t = _t[:_k + 1] + _imp + '\n' + _t[_k + 1:]
+open(B + _SR, 'w').write(_t)
+print('v34 ring replaced')
+
+_AL = 'screens/audiolab/AudioLabScreen.kt'
+_t = open(B + _AL).read()
+_o1 = "        Box(Modifier.matchParentSize()) { sketch() }\n        Column(Modifier.padding(start = 24.dp"
+_o2 = "        Box(Modifier.matchParentSize()) { sketch() }\n        Column(Modifier.padding(horizontal = 20.dp"
+assert _t.count(_o1) == 1 and _t.count(_o2) == 1
+_gem = ("        Box(Modifier.matchParentSize().padding(end = %d.dp), contentAlignment = Alignment.CenterEnd) {\n"
+        "            com.mochyy.mochymusic.ui.component.GlassIconTile(size = %d.dp, glow = 0.55f) {\n"
+        "                androidx.compose.material3.Icon(%s, contentDescription = null, tint = Color.White, modifier = Modifier.size(%d.dp))\n"
+        "            }\n        }\n")
+_t = _t.replace(_o1, (_gem % (22, 76, 'if (title == "Equalizer") androidx.compose.material.icons.Icons.Rounded.Tune else androidx.compose.material.icons.Icons.Rounded.AutoAwesome', 38)) + "        Column(Modifier.padding(start = 24.dp")
+_t = _t.replace(_o2, (_gem % (16, 44, 'if (title.contains("Quality", true)) androidx.compose.material.icons.Icons.Rounded.GraphicEq else androidx.compose.material.icons.Icons.Rounded.SwapHoriz', 24)) + "        Column(Modifier.padding(horizontal = 20.dp")
+for _imp in ('import androidx.compose.material.icons.Icons', 'import androidx.compose.material.icons.rounded.Tune', 'import androidx.compose.material.icons.rounded.AutoAwesome', 'import androidx.compose.material.icons.rounded.GraphicEq', 'import androidx.compose.material.icons.rounded.SwapHoriz'):
+    if _imp not in _t:
+        _k = _t.index('\nimport ')
+        _t = _t[:_k + 1] + _imp + '\n' + _t[_k + 1:]
+open(B + _AL, 'w').write(_t)
+print('v34 audio lab gems')
+
+_CC = 'screens/gesture/CustomisationCards.kt'
+_t = open(B + _CC).read()
+_a = _t.index('private fun RoundingSwatch(')
+_b = _t.index('// a bare line like the mock')
+_new = '''private fun RoundingSwatch(radiusPx: Float, modifier: Modifier) {
+    Canvas(modifier = modifier) {
+        val r = radiusPx.coerceIn(0f, MaxCoverRadius).dp.toPx()
+        val side = 96.dp.toPx()
+        val left = size.width - side - 26.dp.toPx()
+        val top = (size.height - side) / 2f
+        val corner = CornerRadius(r.coerceAtMost(side / 2f), r.coerceAtMost(side / 2f))
+        drawRoundRect(
+            brush = Brush.linearGradient(listOf(Color(0xCC6ECDFF), Color(0x88A58BFF)), Offset(left, top), Offset(left + side, top + side)),
+            topLeft = Offset(left, top), size = Size(side, side), cornerRadius = corner,
+        )
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.40f),
+            topLeft = Offset(left, top), size = Size(side, side), cornerRadius = corner,
+            style = Stroke(width = 1.5.dp.toPx()),
+        )
+        drawRoundRect(
+            brush = Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.30f), Color.Transparent), top, top + side * 0.5f),
+            topLeft = Offset(left + 6.dp.toPx(), top + 6.dp.toPx()), size = Size(side - 12.dp.toPx(), side * 0.4f),
+            cornerRadius = CornerRadius((r * 0.6f).coerceAtMost(side * 0.2f)),
+        )
+    }
+}
+
+'''
+_t = _t[:_a] + _new + _t[_b:]
+_o = "        drawLine(Color.White, Offset(start, y), Offset(start + (end - start) * shown, y), stroke, StrokeCap.Round)\n"
+assert _t.count(_o) == 1
+_t = _t.replace(_o, _o.replace('Color.White,', 'Color(0xFF6ECDFF),') + "        drawCircle(Color.White, 8.dp.toPx(), Offset(start + (end - start) * shown, y))\n        drawCircle(Color(0xFF6ECDFF), 8.dp.toPx(), Offset(start + (end - start) * shown, y), style = Stroke(2.dp.toPx()))\n")
+for _imp in ('import androidx.compose.ui.graphics.Brush', 'import androidx.compose.ui.geometry.CornerRadius', 'import androidx.compose.ui.geometry.Offset', 'import androidx.compose.ui.geometry.Size', 'import androidx.compose.ui.graphics.drawscope.Stroke'):
+    if _imp not in _t:
+        _k = _t.index('\nimport ')
+        _t = _t[:_k + 1] + _imp + '\n' + _t[_k + 1:]
+open(B + _CC, 'w').write(_t)
+print('v34 customize sample + slider')
+
+_ID = 'screens/setup/onboarding/ProfileIdCard.kt'
+_t = open(B + _ID).read()
+_a = _t.index('            MarqueeStrip(\n                text = "${name}')
+_e = 'running = marqueeRunning,\n            )\n'
+_b = _t.index(_e, _a) + len(_e)
+_t = _t[:_a] + _t[_b:]
+assert _t.count('if (showIdCardOf) {') == 1
+_t = _t.replace('if (showIdCardOf) {', 'if (false) {')
+_o = '.padding(start = unit * 22f, top = unit * 20f, end = unit * 12f, bottom = unit * 18f)'
+assert _t.count(_o) == 1
+_t = _t.replace(_o, '.padding(start = unit * 22f, top = unit * 20f, end = unit * 22f, bottom = unit * 18f)')
+_o = '.clip(CircleShape)\n                            .background(if (silver) Color(0xFF5A5A60) else Color(0xFF1F2F55))'
+assert _t.count(_o) == 1
+_t = _t.replace(_o, '.clip(CircleShape)\n                            .background(if (silver) Color(0xFF5A5A60) else Color(0xFF1F2F55))\n                            .border(2.dp, Color(0xFF6ECDFF).copy(alpha = 0.55f), CircleShape)')
+open(B + _ID, 'w').write(_t)
+print('v34 id card recomposed')
