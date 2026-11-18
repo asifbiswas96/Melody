@@ -441,8 +441,12 @@ TDEOF
         echo "CLOCK SAMPLE $k: $(python3 -c "import re;print(' '.join(re.findall(r'text=\"(-?[0-9]+:[0-9]{2})\"', open('/tmp/ui_dump.xml').read())), ' | ', ' / '.join(re.findall(r'text=\"(Melody [^\"]{0,30})\"', open('/tmp/ui_dump.xml').read())[:2]))")"
         sleep 1
       done
-      for lbl in "Queue" "Up next" "Lyrics"; do
-        dump_strings >/dev/null 2>&1
+      for lbl in "Queue" "Lyrics"; do
+        adb shell input tap 909 1367
+        sleep 2
+        dump_strings || true
+        shot "04m_chevron_menu_$lbl"
+        echo "PLAYER CHEVRON: tapped chevron at 909,1367 (fixed position, not text-verified) for $lbl"
         if tap_exact "$lbl" || tap_text "$lbl"; then
           sleep 3
           dump_strings || true
@@ -451,7 +455,7 @@ TDEOF
           adb shell input swipe 540 1700 540 700 >/dev/null 2>&1
           sleep 2
           shot "04q_$(echo $lbl | tr -d ' ')_scrolled"
-          adb shell input keyevent BACK
+          adb shell input swipe 540 1500 540 2100 >/dev/null 2>&1
           sleep 2
         else
           echo "PLAYER EXTRA UNVERIFIED: no '$lbl' label on player"
