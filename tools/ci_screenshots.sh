@@ -80,6 +80,16 @@ adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true ||
 sleep 3
 if adb shell ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then echo 'NET CHECK: STILL ONLINE'; else echo 'NET CHECK: offline'; fi
 
+# v43 diagnostics: host-side logcat so an emulator death leaves evidence (printed on exit)
+adb logcat -c >/dev/null 2>&1 || true
+( adb logcat -v time > /tmp/lc_all.txt 2>&1 & ) 
+diag_tail() {
+  echo "### LOGCAT DIAG (crash/ANR/memory lines)"
+  grep -aE "FATAL EXCEPTION|ANR in|Fatal signal|OutOfMemory|lowmemorykiller|Process .* has died|am_proc_died|am_crash|GPU|swiftshader|Out of memory" /tmp/lc_all.txt 2>/dev/null | tail -25 | cut -c1-220
+  echo "### LOGCAT LAST LINES"
+  tail -12 /tmp/lc_all.txt 2>/dev/null | cut -c1-220
+}
+trap diag_tail EXIT
 mkdir -p shots
 upload_shots() {
   mkdir -p shots_done
