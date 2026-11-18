@@ -523,3 +523,24 @@ _sub('screens/settings/modules/ModulesScreen.kt', [
         }"""),
 ], ['import androidx.compose.foundation.layout.size', 'import androidx.compose.material.icons.Icons', 'import androidx.compose.material.icons.rounded.Search'])
 print('v32 done')
+
+# v33: translucent glass for the Audio Lab hub cards, lab cards and module rows.
+_HE = '.border(1.dp, Color(0xFF6ECDFF).copy(alpha = 0.18f), RoundedCornerShape(%d.dp))'
+_sub('screens/audiolab/AudioLabKit.kt', [('val Row = Color(0xFF14213F)', 'val Row = Color(0xA614213F)'), ('val Chip = Color(0xFF13203C)', 'val Chip = Color(0xA613203C)')])
+_sub('screens/settings/modules/ModuleParts.kt', [('internal val ModuleRowColor = Color(0xFF131314)', 'internal val ModuleRowColor = Color(0xB30E1A38)')])
+print('v33 done')
+
+_E = '.border(1.dp, Color(0xFF6ECDFF).copy(alpha = 0.18f), %s)'
+_sub('screens/gesture/CustomisationCards.kt', [
+    ('.height(RoundingCardHeight)\n                .clip(CardShape)\n                .background(LabColors.Card),', '.height(RoundingCardHeight)\n                .clip(CardShape)\n                .background(LabColors.Card)\n                ' + _E % 'CardShape' + ',') ,
+    ('.clip(SliderCardShape)\n            .background(LabColors.Card)', '.clip(SliderCardShape)\n            .background(LabColors.Card)\n            ' + _E % 'SliderCardShape'),
+    ('.height(StyleCardHeight)\n            .clip(CardShape)\n            .background(LabColors.Card)', '.height(StyleCardHeight)\n            .clip(CardShape)\n            .background(LabColors.Card)\n            ' + _E % 'CardShape'),
+    ('private val SwatchColor = Color(0xFFD9D9D9)', 'private val SwatchColor = Color(0xCC6ECDFF)'),
+])
+print('v33b done')
+
+_sub('screens/update/VersionRing.kt', [
+    ('ringColor: Color = Color.White.copy(alpha = 0.08f),', 'ringColor: Color = Color(0xFF6ECDFF).copy(alpha = 0.10f),'),
+    ('textColor: Color = Color.White.copy(alpha = 0.3f),', 'textColor: Color = Color(0xFF6ECDFF).copy(alpha = 0.38f),'),
+])
+print('v33c done')
