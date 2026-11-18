@@ -475,7 +475,7 @@ def _sub(path, pairs, imports=()):
     open(_p, 'w').write(_s)
     print('v32 patched', path)
 
-_PILL = ('.background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xE66ECDFF), Color(0xE62F8BFF))))\n'
+_PILL = ('.clip(CircleShape)\n            .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xE66ECDFF), Color(0xE62F8BFF))))\n'
          '            .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape)')
 _BORDER = 'import androidx.compose.foundation.border'
 # translucent row surface for every sheet that uses it
