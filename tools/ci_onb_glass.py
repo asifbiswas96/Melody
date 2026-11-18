@@ -700,3 +700,20 @@ _sub('screens/gesture/CustomisationLivePreviews.kt', [
     ('"of course, what do you mean my love"', '"play it all night long"'),
 ])
 print('v36 done')
+
+# v37: detail pages in the glass backdrop (artist page navy + glow instead of cover-colour black; album/playlist cover wash ends in navy), glass skeleton/avatar tint, Integrations rows with glass edges.
+_sub('screens/artist/ArtistScreen.kt', [
+    ('targetValue = themeColor ?: MaterialTheme.colorScheme.background,', 'targetValue = com.mochyy.mochymusic.ui.theme.MelodyNavyDeep,'),
+    ('.drawBehind { drawRect(background.value) }\n    ) {', '.drawBehind { drawRect(background.value) }\n            .melodyGlowBackground(true)\n    ) {'),
+], ['import com.mochyy.mochymusic.ui.component.melodyGlowBackground'])
+_sub('component/detail/DetailCoverBackground.kt', [
+    ('0f to animatedColor,\n', '0f to animatedColor.copy(alpha = 0.6f),\n'),
+    ('0.35f to animatedColor.copy(alpha = 0.55f),', '0.35f to animatedColor.copy(alpha = 0.32f),'),
+    ('1f to backgroundColor,', '1f to com.mochyy.mochymusic.ui.theme.MelodyNavyDeep.copy(alpha = 0.6f),'),
+])
+_sub('component/RevealOnAppear.kt', [('val BoneColor = Color(0xFFD9D9D9).copy(alpha = 0.22f)', 'val BoneColor = Color(0xFF6ECDFF).copy(alpha = 0.16f)')])
+_sub('screens/settings/integrations/IntegrationRow.kt', [
+    ('            .clip(CardShape)\n            .background(CardColor)\n', '            .clip(CardShape)\n            .background(CardColor)\n            .border(1.dp, Color(0xFF6ECDFF).copy(alpha = 0.18f), CardShape)\n'),
+    ('                .clip(IconShape)\n                .background(iconBackground),', '                .clip(IconShape)\n                .background(iconBackground)\n                .border(1.dp, Color.White.copy(alpha = 0.35f), IconShape),'),
+], ['import androidx.compose.foundation.border'])
+print('v37 done')
