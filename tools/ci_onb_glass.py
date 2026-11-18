@@ -460,3 +460,66 @@ _s = _s.replace('Text(text = text, fontSize = 17.sp, fontWeight = FontWeight.Bol
                 'Text(text = text, fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp, color = Color.White)')
 open(_p, 'w').write(_s)
 print('v31 settings icon gems + glass sheet button done')
+
+# v32: audit round 2: sheet/row surfaces and icon chips in the Update, Device integration and Modules screens.
+def _sub(path, pairs, imports=()):
+    _p = B + path
+    _s = open(_p).read()
+    for _o, _n in pairs:
+        assert _s.count(_o) == 1, (path, _o[:70], _s.count(_o))
+        _s = _s.replace(_o, _n)
+    for _i in imports:
+        if _i not in _s:
+            _k = _s.index('\nimport ')
+            _s = _s[:_k + 1] + _i + '\n' + _s[_k + 1:]
+    open(_p, 'w').write(_s)
+    print('v32 patched', path)
+
+_PILL = ('.background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xE66ECDFF), Color(0xE62F8BFF))))\n'
+         '            .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape)')
+_BORDER = 'import androidx.compose.foundation.border'
+# translucent row surface for every sheet that uses it
+_sub('player/menu/MenuSheet.kt', [('val MenuRowSurface = Color(0xFF0E1A38)', 'val MenuRowSurface = Color(0xA60E1A38)')])
+# update sheet: glass pill (even gradient, no blob) and gem tile on the action rows
+_sub('screens/update/UpdateSheet.kt', [
+    ('.glassGem(CircleShape, GemBlue, 0.55f)', _PILL),
+    ("""        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .graphicsLayer { alpha = contentAlpha }
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFDADADA)),
+        ) {""", """        com.mochyy.mochymusic.ui.component.GlassIconTile(
+            size = 34.dp,
+            glow = 0.45f,
+            modifier = Modifier.graphicsLayer { alpha = contentAlpha },
+        ) {"""),
+], [_BORDER])
+# device integration: glass pill Done, gem chips, solid (not dashed) add box
+_sub('screens/devices/DevicesKit.kt', [
+    ('.background(if (bright) Color.White else Color.White.copy(alpha = 0.26f))',
+     '.background(if (bright) androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.White, Color.White)) else androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color(0xE66ECDFF), Color(0xE62F8BFF))))\n            .border(1.dp, Color.White.copy(alpha = 0.35f), CircleShape)'),
+    ("""            Box(Modifier.size(30.dp).clip(CircleShape).background(Faint), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = if (enabled) 1f else 0.4f), modifier = Modifier.size(16.dp))
+            }""", """            com.mochyy.mochymusic.ui.component.GlassIconTile(size = 34.dp, glow = 0.45f) {
+                Icon(icon, contentDescription = null, tint = Color.White.copy(alpha = if (enabled) 1f else 0.4f), modifier = Modifier.size(16.dp))
+            }"""),
+], [_BORDER])
+_sub('screens/devices/DeviceIntegrationSheet.kt', [
+    ('style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(9.dp.toPx(), 7.dp.toPx()))),', 'style = Stroke(stroke),'),
+])
+_sub('screens/settings/modules/ModuleParts.kt', [
+    ('style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(14.dp.toPx(), 10.dp.toPx()))),', 'style = Stroke(width = 1.5.dp.toPx()),'),
+])
+# modules banner: the upstream drawing becomes a glass gem tile with a search glyph
+_sub('screens/settings/modules/ModulesScreen.kt', [
+    ("""        Image(
+            painterResource(R.drawable.modules_bar_mochy), null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.align(Alignment.Bottom).padding(top = 10.dp).fillMaxHeight(),
+        )""", """        com.mochyy.mochymusic.ui.component.GlassIconTile(size = 64.dp, glow = 0.6f) {
+            androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Search, contentDescription = null, modifier = Modifier.size(32.dp))
+        }"""),
+], ['import androidx.compose.foundation.layout.size', 'import androidx.compose.material.icons.Icons', 'import androidx.compose.material.icons.rounded.Search'])
+print('v32 done')
