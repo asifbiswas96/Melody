@@ -397,72 +397,6 @@ if vis_have "melody glass test"; then
       sleep 5
       shot 04f_settled_b
       echo 'NOWPLAYING SETTLED: two frames 3s and 8s after the overlay step, to judge artwork load timing'
-      # v39 player extras: scroll the player, capture each step, open Queue / Lyrics when their label is on screen
-      for k in 1 2 3; do
-        adb shell input swipe 540 1700 540 500 >/dev/null 2>&1
-        sleep 2
-        dump_strings || true
-        shot "04x_player_scroll$k"
-      done
-      cat > /tmp/tap_desc.py <<'TDEOF'
-import sys, re, xml.etree.ElementTree as ET
-pat = re.compile(sys.argv[1], re.I)
-for node in ET.parse('/tmp/ui.xml').iter('node'):
-    d = (node.get('content-desc') or '').strip()
-    if d and pat.search(d):
-        m = re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.get('bounds') or '')
-        if m:
-            l, t, r_, b = map(int, m.groups())
-            print((l + r_) // 2, (t + b) // 2); sys.exit(0)
-sys.exit(1)
-TDEOF
-      adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1
-      echo "PLAYER DESCS: $(python3 -c "import re;print(' | '.join(sorted(set(re.findall(r'content-desc=\"([^\"]{2,40})\"', open('/tmp/ui.xml').read())))))")"
-      for dsc in "queue|up next" "lyrics" "expand|more|menu|options"; do
-        adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1
-        if XYD=$(python3 /tmp/tap_desc.py "$dsc"); then
-          adb shell input tap $XYD
-          sleep 3
-          dump_strings || true
-          shot "04d_$(echo $dsc | tr -c 'a-z' '_')"
-          echo "PLAYER DESC SHOT: tapped content-desc /$dsc/ (destination not asserted)"
-          adb shell input swipe 540 1700 540 700 >/dev/null 2>&1
-          sleep 2
-          shot "04d_$(echo $dsc | tr -c 'a-z' '_')_scrolled"
-          adb shell input keyevent BACK
-          sleep 2
-        else
-          echo "PLAYER DESC UNVERIFIED: no content-desc /$dsc/"
-        fi
-      done
-      # position sampling: log the visible m:ss strings once a second, to tell a clock artifact from a real overshoot
-      for k in $(seq 1 14); do
-        adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui_dump.xml >/dev/null 2>&1
-        echo "CLOCK SAMPLE $k: $(python3 -c "import re;print(' '.join(re.findall(r'text=\"(-?[0-9]+:[0-9]{2})\"', open('/tmp/ui_dump.xml').read())), ' | ', ' / '.join(re.findall(r'text=\"(Melody [^\"]{0,30})\"', open('/tmp/ui_dump.xml').read())[:2]))")"
-        sleep 1
-      done
-      for lbl in "Queue" "Lyrics"; do
-        adb shell input tap 909 1367
-        sleep 2
-        dump_strings || true
-        shot "04m_chevron_menu_$lbl"
-        echo "PLAYER CHEVRON: tapped chevron at 909,1367 (fixed position, not text-verified) for $lbl"
-        if tap_exact "$lbl" || tap_text "$lbl"; then
-          sleep 3
-          dump_strings || true
-          shot "04q_$(echo $lbl | tr -d ' ')"
-          echo "PLAYER EXTRA SHOT: $lbl tapped by label (destination not asserted)"
-          adb shell input swipe 540 1700 540 700 >/dev/null 2>&1
-          sleep 2
-          shot "04q_$(echo $lbl | tr -d ' ')_scrolled"
-          adb shell input swipe 540 1500 540 2100 >/dev/null 2>&1
-          sleep 2
-        else
-          echo "PLAYER EXTRA UNVERIFIED: no '$lbl' label on player"
-        fi
-      done
-      # Assert the real player with unique strings inside an 8s window; emit
-      # 04 only when the assertion passes.
       shot 04b_nowplaying_after
       POK=0
       for i in $(seq 1 4); do
@@ -821,4 +755,89 @@ if tap_text "profile"; then
   fi
 fi
 echo "### Screenshots (device integration phase)" >> "$GITHUB_STEP_SUMMARY"
+upload_shots
+
+# --- v43: player extras LAST: the emulator process vanished during these player swipes in two runs ---
+relaunch
+tap_text "Library" || true
+sleep 2
+tap_exact "Songs" || tap_text "Songs" || true
+sleep 3
+if tap_text "Melody Glass Test"; then
+  sleep 4
+  adb shell input tap 400 1978
+  sleep 3
+  dump_strings || true
+  if vis_have "got it"; then tap_text "Got it" || tap_text "GOT IT" || true; sleep 3; fi
+  shot 04z_player_open
+      # v39 player extras: scroll the player, capture each step, open Queue / Lyrics when their label is on screen
+      for k in 1 2 3; do
+        adb shell input swipe 540 1700 540 500 >/dev/null 2>&1
+        sleep 2
+        dump_strings || true
+        shot "04x_player_scroll$k"
+      done
+      cat > /tmp/tap_desc.py <<'TDEOF'
+import sys, re, xml.etree.ElementTree as ET
+pat = re.compile(sys.argv[1], re.I)
+for node in ET.parse('/tmp/ui.xml').iter('node'):
+    d = (node.get('content-desc') or '').strip()
+    if d and pat.search(d):
+        m = re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.get('bounds') or '')
+        if m:
+            l, t, r_, b = map(int, m.groups())
+            print((l + r_) // 2, (t + b) // 2); sys.exit(0)
+sys.exit(1)
+TDEOF
+      adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1
+      echo "PLAYER DESCS: $(python3 -c "import re;print(' | '.join(sorted(set(re.findall(r'content-desc=\"([^\"]{2,40})\"', open('/tmp/ui.xml').read())))))")"
+      for dsc in "queue|up next" "lyrics" "expand|more|menu|options"; do
+        adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1
+        if XYD=$(python3 /tmp/tap_desc.py "$dsc"); then
+          adb shell input tap $XYD
+          sleep 3
+          dump_strings || true
+          shot "04d_$(echo $dsc | tr -c 'a-z' '_')"
+          echo "PLAYER DESC SHOT: tapped content-desc /$dsc/ (destination not asserted)"
+          adb shell input swipe 540 1700 540 700 >/dev/null 2>&1
+          sleep 2
+          shot "04d_$(echo $dsc | tr -c 'a-z' '_')_scrolled"
+          adb shell input keyevent BACK
+          sleep 2
+        else
+          echo "PLAYER DESC UNVERIFIED: no content-desc /$dsc/"
+        fi
+      done
+      # position sampling: log the visible m:ss strings once a second, to tell a clock artifact from a real overshoot
+      for k in $(seq 1 14); do
+        adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui_dump.xml >/dev/null 2>&1
+        echo "CLOCK SAMPLE $k: $(python3 -c "import re;print(' '.join(re.findall(r'text=\"(-?[0-9]+:[0-9]{2})\"', open('/tmp/ui_dump.xml').read())), ' | ', ' / '.join(re.findall(r'text=\"(Melody [^\"]{0,30})\"', open('/tmp/ui_dump.xml').read())[:2]))")"
+        sleep 1
+      done
+      for lbl in "Queue" "Lyrics"; do
+        adb shell input tap 909 1367
+        sleep 2
+        dump_strings || true
+        shot "04m_chevron_menu_$lbl"
+        echo "PLAYER CHEVRON: tapped chevron at 909,1367 (fixed position, not text-verified) for $lbl"
+        if tap_exact "$lbl" || tap_text "$lbl"; then
+          sleep 3
+          dump_strings || true
+          shot "04q_$(echo $lbl | tr -d ' ')"
+          echo "PLAYER EXTRA SHOT: $lbl tapped by label (destination not asserted)"
+          adb shell input swipe 540 1700 540 700 >/dev/null 2>&1
+          sleep 2
+          shot "04q_$(echo $lbl | tr -d ' ')_scrolled"
+          adb shell input swipe 540 1500 540 2100 >/dev/null 2>&1
+          sleep 2
+        else
+          echo "PLAYER EXTRA UNVERIFIED: no '$lbl' label on player"
+        fi
+      done
+      # Assert the real player with unique strings inside an 8s window; emit
+      # 04 only when the assertion passes.
+else
+  echo 'PLAYER EXTRAS UNVERIFIED: song row not tappable in last phase'
+fi
+echo "### Screenshots (player extras phase)" >> "$GITHUB_STEP_SUMMARY"
 upload_shots
