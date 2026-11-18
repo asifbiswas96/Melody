@@ -777,3 +777,140 @@ for _imp in ('import androidx.compose.material.icons.Icons', 'import androidx.co
         _t = _t[:_k2] + _imp + '\n' + _t[_k2:]
 open(B + _LD, 'w').write(_t)
 print('v38 empty state')
+
+# v39: square glass cover frame, glass section pills/rows/end strip, gem avatar placeholders, glass Customize demos.
+def _imp(t, imps):
+    for i in imps:
+        if i not in t:
+            k = t.index('import ')
+            t = t[:k] + i + '\n' + t[k:]
+    return t
+def _r(t, o, n):
+    assert t.count(o) == 1, (o[:70], t.count(o))
+    return t.replace(o, n)
+_GL = 'com.mochyy.mochymusic.ui.component.MelodyGlassEdgeBrush'
+_t = open(B + _PD).read()
+_t = _r(_t, '''      Box(
+        Modifier
+            .matchParentSize()
+            .padding(start = 30.dp, end = 30.dp, top = 84.dp, bottom = 170.dp)
+            .clip(RoundedCornerShape(34.dp))
+            .border(1.dp, com.mochyy.mochymusic.ui.component.MelodyGlassEdgeBrush, RoundedCornerShape(34.dp)),
+      ) {''', '''      Box(Modifier.matchParentSize().padding(top = 84.dp, bottom = 170.dp), contentAlignment = Alignment.Center) {
+      Box(
+        Modifier
+            .fillMaxHeight()
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(34.dp))
+            .border(1.dp, %s, RoundedCornerShape(34.dp)),
+      ) {''' % _GL)
+_t = _r(_t, '''        }
+      }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .drawWithCache {''', '''        }
+      }
+      }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .drawWithCache {''')
+# track rows as glass cards
+_t = _r(_t, '''        modifier = modifier
+            .fillMaxWidth()
+            .selectedRowBand { band }''', '''        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(Color(0x66101A30))
+            .border(1.dp, %s, RoundedCornerShape(22.dp))
+            .selectedRowBand { band }''' % _GL)
+_t = _r(_t, '.padding(start = PlaylistInset, end = 24.dp, top = verticalPadding, bottom = verticalPadding)', '.padding(start = PlaylistInset - 8.dp, end = 16.dp, top = verticalPadding, bottom = verticalPadding)')
+# section title pill
+_t = _r(_t, '''            .padding(start = PlaylistInset - 4.dp, end = PlaylistInset)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(enabled = onClick != null) { onClick?.invoke() }
+            .padding(horizontal = 4.dp, vertical = 4.dp)''', '''            .padding(start = PlaylistInset - 4.dp, end = PlaylistInset)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0x66101A30))
+            .border(1.dp, %s, RoundedCornerShape(16.dp))
+            .clickable(enabled = onClick != null) { onClick?.invoke() }
+            .padding(horizontal = 14.dp, vertical = 8.dp)''' % _GL)
+# end strip card
+_t = _r(_t, '''            .padding(horizontal = PlaylistInset)
+            .padding(top = 18.dp, bottom = 6.dp)
+    ) {
+        ReceiptRule()''', '''            .padding(horizontal = PlaylistInset)
+            .padding(top = 18.dp, bottom = 6.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0x66101A30))
+            .border(1.dp, %s, RoundedCornerShape(20.dp))
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    ) {
+        ReceiptRule()''' % _GL)
+# featured artist placeholder: gem tile
+_t = _r(_t, '''                            Icon(
+                                painter = painterResource(R.drawable.person),
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.6f),
+                                modifier = Modifier.size(38.dp),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))''', '''                            com.mochyy.mochymusic.ui.component.GlassIconTile(size = 95.dp, glow = 0.5f) {
+                                Icon(
+                                    painter = painterResource(R.drawable.person),
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(42.dp),
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))''')
+_t = _imp(_t, ['import androidx.compose.foundation.layout.fillMaxHeight', 'import androidx.compose.foundation.layout.aspectRatio', 'import androidx.compose.ui.Alignment'])
+open(B + _PD, 'w').write(_t)
+
+_AD = 'screens/artist/ArtistDesign.kt'
+_t = open(B + _AD).read()
+_t = _r(_t, '''                model = url,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+    }''', '''                model = url,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                com.mochyy.mochymusic.ui.component.GlassIconTile(size = ArtistAvatarSize, glow = 0.55f) {
+                    androidx.compose.material3.Icon(Icons.Rounded.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(ArtistAvatarSize * 0.45f))
+                }
+            }
+        }
+    }''')
+_t = _imp(_t, ['import androidx.compose.material.icons.Icons', 'import androidx.compose.material.icons.rounded.Person', 'import androidx.compose.foundation.layout.Box', 'import androidx.compose.ui.Alignment', 'import androidx.compose.ui.graphics.Color'])
+open(B + _AD, 'w').write(_t)
+
+_CP = 'screens/gesture/CustomisationPreviews.kt'
+_t = open(B + _CP).read()
+_t = _r(_t, 'internal val FrameFill = Color(0xFF2B2B2D)', 'internal val FrameFill = Color(0xFF0E1B38)')
+_t = _r(_t, 'internal val ArtFill = Brush.verticalGradient(listOf(Color(0xFF636365), Color(0xFF3F3F41)))', 'internal val ArtFill = Brush.verticalGradient(listOf(Color(0xFF3B6E9E), Color(0xFF1E5260)))')
+_t = _r(_t, 'private val SoftArtFill = Brush.verticalGradient(listOf(Color(0xFF545456), FrameFill))', 'private val SoftArtFill = Brush.verticalGradient(listOf(Color(0xFF2C5A86), FrameFill))')
+_t = _r(_t, 'private val ArtLight = Color(0xFF7C7C7E)', 'private val ArtLight = Color(0xFF6ECDFF).copy(alpha = 0.55f)')
+_t = _r(_t, 'internal val BoneDim = Color.White.copy(alpha = 0.1f)', 'internal val BoneDim = Color(0xFF6ECDFF).copy(alpha = 0.2f)')
+open(B + _CP, 'w').write(_t)
+_t = open(B + 'screens/gesture/CustomisationLivePreviews.kt').read()
+_t = _r(_t, 'Color(0xFF707072), Color(0xFF505052)', 'Color(0xFF3B6E9E), Color(0xFF1E4468)')
+_t = _r(_t, '0.13f to Color(0xFF545456))', '0.13f to Color(0xFF1E4468))')
+_t = _r(_t, 'NavPreviewLip = Color(0xFF414143)', 'NavPreviewLip = Color(0xFF16294D)')
+open(B + 'screens/gesture/CustomisationLivePreviews.kt', 'w').write(_t)
+_t = open(B + 'screens/gesture/SwipePreview.kt').read()
+_t = _r(_t, '.background(Color.White.copy(alpha = 0.14f)))', '.background(Color(0xFF6ECDFF).copy(alpha = 0.26f)))')
+_t = _r(_t, '.background(Color.White.copy(alpha = 0.13f)))', '.background(Color(0xFF6ECDFF).copy(alpha = 0.22f)))')
+open(B + 'screens/gesture/SwipePreview.kt', 'w').write(_t)
+print('v39 done')
