@@ -404,6 +404,43 @@ if vis_have "melody glass test"; then
         dump_strings || true
         shot "04x_player_scroll$k"
       done
+      cat > /tmp/tap_desc.py <<'TDEOF'
+import sys, re, xml.etree.ElementTree as ET
+pat = re.compile(sys.argv[1], re.I)
+for node in ET.parse('/tmp/ui.xml').iter('node'):
+    d = (node.get('content-desc') or '').strip()
+    if d and pat.search(d):
+        m = re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.get('bounds') or '')
+        if m:
+            l, t, r_, b = map(int, m.groups())
+            print((l + r_) // 2, (t + b) // 2); sys.exit(0)
+sys.exit(1)
+TDEOF
+      adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1
+      echo "PLAYER DESCS: $(python3 -c "import re;print(' | '.join(sorted(set(re.findall(r'content-desc=\"([^\"]{2,40})\"', open('/tmp/ui.xml').read())))))")"
+      for dsc in "queue|up next" "lyrics" "expand|more|menu|options"; do
+        adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1
+        if XYD=$(python3 /tmp/tap_desc.py "$dsc"); then
+          adb shell input tap $XYD
+          sleep 3
+          dump_strings || true
+          shot "04d_$(echo $dsc | tr -c 'a-z' '_')"
+          echo "PLAYER DESC SHOT: tapped content-desc /$dsc/ (destination not asserted)"
+          adb shell input swipe 540 1700 540 700 >/dev/null 2>&1
+          sleep 2
+          shot "04d_$(echo $dsc | tr -c 'a-z' '_')_scrolled"
+          adb shell input keyevent BACK
+          sleep 2
+        else
+          echo "PLAYER DESC UNVERIFIED: no content-desc /$dsc/"
+        fi
+      done
+      # position sampling: log the visible m:ss strings once a second, to tell a clock artifact from a real overshoot
+      for k in $(seq 1 14); do
+        adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui_dump.xml >/dev/null 2>&1
+        echo "CLOCK SAMPLE $k: $(python3 -c "import re;print(' '.join(re.findall(r'text=\"(-?[0-9]+:[0-9]{2})\"', open('/tmp/ui_dump.xml').read())), ' | ', ' / '.join(re.findall(r'text=\"(Melody [^\"]{0,30})\"', open('/tmp/ui_dump.xml').read())[:2]))")"
+        sleep 1
+      done
       for lbl in "Queue" "Up next" "Lyrics"; do
         dump_strings >/dev/null 2>&1
         if tap_exact "$lbl" || tap_text "$lbl"; then
@@ -538,10 +575,13 @@ sub_visit() {
         shot "06s_$(echo $sp | tr -d ' ')_end"
         echo "SUB END SHOT: $sp true scroll end - verify last row clears mini player and nav"
         if [ "$sp" = "Storage" ]; then
-          adb shell input swipe 540 600 540 1700 >/dev/null 2>&1
-          adb shell input swipe 540 600 540 1700 >/dev/null 2>&1
           sleep 1
-          if tap_regex "(?i)download"; then
+          for _i in 1 2 3 4; do
+            adb shell input swipe 540 1500 540 700 >/dev/null 2>&1
+            sleep 1
+          done
+          shot "06s_Storage_prescroll"
+          if tap_regex "(?i)manage downloads"; then
             sleep 3
             dump_strings || true
             shot "06s_Storage_downloads"
@@ -577,7 +617,12 @@ if refresh && XY=$(python3 /tmp/tap.py "Melody Glass Test"); then
   sleep 3
   dump_strings || true
   shot 10a_song_menu
-  if tap_text "Add to playlist"; then
+  scroll_to_end
+  dump_strings || true
+  shot 10a_song_menu_end
+  echo "SONG MENU END SHOT: true end of the song menu - verify last row clears system nav"
+  for _i in 1 2 3 4; do adb shell input swipe 540 700 540 1500 >/dev/null 2>&1; done
+  if tap_exact "Add"; then
     sleep 3
     dump_strings || true
     shot 10b_add_to_playlist
