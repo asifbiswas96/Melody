@@ -962,3 +962,11 @@ _t = _r(_t, '''            .clip(RoundedCornerShape(14.dp))
 _t = _imp(_t, ['import androidx.compose.foundation.border', 'import androidx.compose.foundation.layout.padding'])
 open(B + _MD, 'w').write(_t)
 print('v42 done')
+
+# v43: shared AppSwitch as a glass pill: sky track when on, faint glass track with edge when off.
+_t = open(B + 'component/AppSwitch.kt').read()
+_t = _r(_t, 'targetValue = if (checked) Grey.copy(alpha = alpha) else Color.Transparent,', 'targetValue = if (checked) Color(0xFF6ECDFF).copy(alpha = 0.62f * alpha) else Color(0xFF6ECDFF).copy(alpha = 0.10f * alpha),')
+_t = _r(_t, 'targetValue = if (checked) Color.Transparent else Grey.copy(alpha = 0.45f * alpha),', 'targetValue = if (checked) Color(0xFFBFEBFF).copy(alpha = 0.55f * alpha) else Color(0xFF6ECDFF).copy(alpha = 0.40f * alpha),')
+_t = _r(_t, 'targetValue = if (checked) Color.White.copy(alpha = alpha) else Grey.copy(alpha = alpha),', 'targetValue = if (checked) Color.White.copy(alpha = alpha) else Color(0xFF9FDFFF).copy(alpha = 0.78f * alpha),')
+open(B + 'component/AppSwitch.kt', 'w').write(_t)
+print('v43 done')
