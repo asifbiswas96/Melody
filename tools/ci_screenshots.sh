@@ -577,6 +577,10 @@ if tap_text "profile"; then
   dump_strings || true
   for _i in 1 2 3; do adb shell input swipe 540 1700 540 600 >/dev/null 2>&1; sleep 1; done
   dump_strings || true
+  scroll_to_end
+  dump_strings || true
+  shot 06p_end
+  echo "PROFILE END SHOT: true scroll end - verify the Settings row clears mini player and nav"
   if tap_text "Open settings" || tap_text_vis "Settings" || tap_text "Settings"; then
     sleep 3
     dump_strings || true
