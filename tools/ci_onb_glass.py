@@ -717,3 +717,63 @@ _sub('screens/settings/integrations/IntegrationRow.kt', [
     ('                .clip(IconShape)\n                .background(iconBackground),', '                .clip(IconShape)\n                .background(iconBackground)\n                .border(1.dp, Color.White.copy(alpha = 0.35f), IconShape),'),
 ], ['import androidx.compose.foundation.border'])
 print('v37 done')
+
+# v38: album/playlist detail recomposed (cover inset in a glass frame over navy glow, no full-bleed wash), glass empty state.
+_PD = 'component/detail/PlaylistDetail.kt'
+_t = open(B + _PD).read()
+def _rep(t, o, n):
+    assert t.count(o) == 1, (o[:60], t.count(o))
+    return t.replace(o, n)
+_t = _rep(_t, 'targetValue = themeColor ?: MaterialTheme.colorScheme.background,\n        animationSpec = tween(600),\n        label = "playlistTheme",', 'targetValue = com.mochyy.mochymusic.ui.theme.MelodyNavyDeep,\n        animationSpec = tween(600),\n        label = "playlistTheme",')
+_t = _rep(_t, 'SideEffect { accent.value = if (effectiveRoundCapsule) Color.Black else themeColor }', 'SideEffect { accent.value = if (effectiveRoundCapsule) Color.Black else com.mochyy.mochymusic.ui.theme.MelodyNavyDeep }')
+_t = _rep(_t, 'Modifier.drawBehind { drawRect(background.value) }\n                }\n            )', 'Modifier.drawBehind { drawRect(background.value) }.melodyGlowBackground(true)\n                }\n            )')
+_t = _rep(_t, '            .height(coverHeight),\n    ) {\n        if (cover != null) {\n            cover(Modifier.fillMaxSize())\n        } else {\n            if (softRequest != null) {',
+ '            .height(coverHeight),\n    ) {\n      Box(\n        Modifier\n            .matchParentSize()\n            .padding(start = 30.dp, end = 30.dp, top = 84.dp, bottom = 170.dp)\n            .clip(RoundedCornerShape(34.dp))\n            .border(1.dp, com.mochyy.mochymusic.ui.component.MelodyGlassEdgeBrush, RoundedCornerShape(34.dp)),\n      ) {\n        if (cover != null) {\n            cover(Modifier.fillMaxSize())\n        } else {\n            if (softRequest != null) {')
+_k = '        Box(\n            modifier = Modifier\n                .matchParentSize()\n                .drawWithCache {\n                    val bg = background.value\n                    val top = Brush.verticalGradient(\n                        0f to Color.Black.copy(alpha = 0.34f),'
+_t = _rep(_t, _k, '      }\n' + _k)
+for _imp in ('import com.mochyy.mochymusic.ui.component.melodyGlowBackground', 'import androidx.compose.foundation.border', 'import androidx.compose.foundation.layout.padding', 'import androidx.compose.foundation.shape.RoundedCornerShape', 'import androidx.compose.ui.draw.clip'):
+    if _imp not in _t:
+        _k2 = _t.index('import ')
+        _t = _t[:_k2] + _imp + '\n' + _t[_k2:]
+open(B + _PD, 'w').write(_t)
+print('v38 playlist/album detail recomposed')
+
+_LD = 'screens/library/LibraryDesign.kt'
+_t = open(B + _LD).read()
+_a = _t.index('fun LibraryEmptyState(')
+_b = _t.index('/**\n * One of the half-width cards')
+_t = _t[:_a] + '''fun LibraryEmptyState(modifier: Modifier = Modifier, text: String = "Nothing to show here") {
+    Box(
+        modifier = modifier.fillMaxWidth().padding(vertical = 40.dp, horizontal = SearchHorizontalPadding),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(28.dp))
+                .background(Color(0x9E101A30))
+                .border(1.dp, com.mochyy.mochymusic.ui.component.MelodyGlassEdgeBrush, RoundedCornerShape(28.dp))
+                .padding(vertical = 32.dp, horizontal = 20.dp),
+        ) {
+            com.mochyy.mochymusic.ui.component.GlassIconTile(size = 64.dp, glow = 0.5f) {
+                androidx.compose.material3.Icon(Icons.Rounded.LibraryMusic, contentDescription = null, tint = Color.White, modifier = Modifier.size(30.dp))
+            }
+            Spacer(Modifier.height(14.dp))
+            Text(
+                text = text,
+                color = SearchColors.Secondary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+    }
+}
+
+''' + _t[_b:]
+for _imp in ('import androidx.compose.material.icons.Icons', 'import androidx.compose.material.icons.rounded.LibraryMusic'):
+    if _imp not in _t:
+        _k2 = _t.index('import ')
+        _t = _t[:_k2] + _imp + '\n' + _t[_k2:]
+open(B + _LD, 'w').write(_t)
+print('v38 empty state')
