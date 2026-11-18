@@ -575,7 +575,9 @@ if tap_text "profile"; then
   # Settings row can sit half-hidden at the page bottom; scroll it into view first.
   for _i in 1 2 3; do adb shell input swipe 540 1500 540 700 >/dev/null 2>&1; sleep 1; done
   dump_strings || true
-  if tap_text "Open settings"; then
+  for _i in 1 2 3; do adb shell input swipe 540 1700 540 600 >/dev/null 2>&1; sleep 1; done
+  dump_strings || true
+  if tap_text "Open settings" || tap_text_vis "Settings" || tap_text "Settings"; then
     sleep 3
     dump_strings || true
     if vis_have_any "app behaviour" "customisation" "animation speed"; then
