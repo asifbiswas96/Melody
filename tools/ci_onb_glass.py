@@ -423,3 +423,40 @@ for _f in ['SongMenu','AlbumMenu','PlaylistMenu','SelectionSongsMenu','YouTubeSo
     _s = _s.replace(_o, 'bottom = 8.dp + maxOf(WindowInsets.systemBars.asPaddingValues().calculateBottomPadding(), 88.dp),')
     open(_p, 'w').write(_s)
 print('v29 menu bottom clearance done')
+
+# v31: full-app audit fixes. (a) every settings row icon becomes a glass gem tile (was a light circle chip
+# with a dark glyph); (b) the sheet primary button ("Done") becomes a glass pill instead of a flat grey one.
+_p = B + 'component/SettingsGroup.kt'
+_s = open(_p).read()
+_o = """            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(Color(0xFFE5E5EA)),
+                contentAlignment = Alignment.Center
+            ) {"""
+assert _s.count(_o) == 1, 'settings icon box'
+_s = _s.replace(_o, """            com.mochyy.mochymusic.ui.component.GlassIconTile(
+                size = 36.dp,
+                glow = 0.45f,
+                tint = listOf(
+                    com.mochyy.mochymusic.ui.component.GemBlue,
+                    com.mochyy.mochymusic.ui.component.GemViolet,
+                    com.mochyy.mochymusic.ui.component.GemTeal,
+                    com.mochyy.mochymusic.ui.component.GemSky,
+                )[(((item.highlightKey ?: item.descriptionText ?: "").hashCode() % 4) + 4) % 4],
+            ) {""")
+open(_p, 'w').write(_s)
+_p = B + 'screens/update/UpdateSheet.kt'
+_s = open(_p).read()
+_o = """            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.26f))
+            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick),"""
+assert _s.count(_o) == 1, 'sheet primary button'
+_s = _s.replace(_o, """            .com_glassPill()
+            .clickable(interactionSource = interaction, indication = RemoteFocus, onClick = onClick),""".replace('.com_glassPill()', '.glassGem(CircleShape, GemBlue, 0.55f)'))
+_s = _s.replace('\nimport ', '\nimport com.mochyy.mochymusic.ui.component.GemBlue\nimport com.mochyy.mochymusic.ui.component.glassGem\nimport ', 1)
+_s = _s.replace('Text(text = text, fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp)',
+                'Text(text = text, fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp, color = Color.White)')
+open(_p, 'w').write(_s)
+print('v31 settings icon gems + glass sheet button done')
