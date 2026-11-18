@@ -212,7 +212,7 @@ vis_set() {
 # True scroll end: swipe until the visible string set stops changing.
 scroll_to_end() {
   PREV=''
-  for i in $(seq 1 8); do
+  for i in $(seq 1 16); do
     dump_strings >/dev/null 2>&1
     CUR=$(vis_set)
     if [ "$CUR" = "$PREV" ]; then echo "SCROLL END after $i swipe(s)"; return 0; fi
@@ -484,7 +484,7 @@ tap_clear() {
     refresh || return 1
     XY=$(python3 /tmp/tap.py "$1" visible) || { if [ "$_k" -ge 3 ]; then adb shell input swipe 540 800 540 1500 >/dev/null 2>&1; else adb shell input swipe 540 1500 540 800 >/dev/null 2>&1; fi; sleep 1; continue; }
     Y=${XY##* }
-    if [ "$Y" -le 2000 ]; then adb shell input tap $XY; return 0; fi
+    if [ "$Y" -le 1750 ]; then adb shell input tap $XY; return 0; fi
     adb shell input swipe 540 1500 540 800 >/dev/null 2>&1
     sleep 1
   done
@@ -537,7 +537,7 @@ for cat in Albums Artists Playlists; do
     dump_strings || true
     shot "09_lib_$cat"
     echo "LIB CATEGORY SHOT: $cat page (destination not text-verified)"
-    adb shell input tap 540 650
+    case "$cat" in Albums) adb shell input tap 300 950;; Artists) adb shell input tap 540 830;; *) adb shell input tap 540 650;; esac
     sleep 3
     dump_strings || true
     shot "09_lib_${cat}_item"
