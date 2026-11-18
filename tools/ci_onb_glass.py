@@ -670,3 +670,21 @@ assert _t.count(_o) == 1
 _t = _t.replace(_o, '.clip(CircleShape)\n                            .background(if (silver) Color(0xFF5A5A60) else Color(0xFF1F2F55))\n                            .border(2.dp, Color(0xFF6ECDFF).copy(alpha = 0.55f), CircleShape)')
 open(B + _ID, 'w').write(_t)
 print('v34 id card recomposed')
+
+# v35: profile page: the end clears the mini player and nav (240dp), the Mochy discord promo card is dropped, Open settings gets a gem tile.
+_sub('screens/settings/ProfileScreen.kt', [
+    ("                        DiscordCard(onClick = { context.openDevUrl(DiscordUrl) })\n                        Spacer(Modifier.height(28.dp))", "                        Spacer(Modifier.height(12.dp))"),
+    ("                        OpenSettingsRow(onClick = { navController.navigate(\"mochy_settings\") })\n                        Spacer(Modifier.height(180.dp))", "                        OpenSettingsRow(onClick = { navController.navigate(\"mochy_settings\") })\n                        Spacer(Modifier.height(260.dp))"),
+    ("""        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFD9D9D9)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(painterResource(R.drawable.settings), contentDescription = null, tint = Color(0xFF101A30), modifier = Modifier.size(18.dp))
+        }""", """        com.mochyy.mochymusic.ui.component.GlassIconTile(size = 38.dp, glow = 0.45f) {
+            Icon(painterResource(R.drawable.settings), contentDescription = null, tint = Color.White, modifier = Modifier.size(19.dp))
+        }"""),
+])
+print('v35 done')
