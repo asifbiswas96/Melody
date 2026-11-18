@@ -688,3 +688,15 @@ _sub('screens/settings/ProfileScreen.kt', [
         }"""),
 ])
 print('v35 done')
+
+# v36: modules info card gem tile instead of the drawn phones; neutral Melody sample lines in the lyrics style previews.
+_sub('screens/settings/modules/ModulesScreen.kt', [
+    ("        TwoPhones(Modifier.padding(start = 26.dp, top = 12.dp).width(84.dp).fillMaxHeight())\n        Spacer(Modifier.width(18.dp))",
+     "        Spacer(Modifier.width(22.dp))\n        com.mochyy.mochymusic.ui.component.GlassIconTile(size = 52.dp, glow = 0.5f) {\n            androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Extension, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))\n        }\n        Spacer(Modifier.width(16.dp))"),
+], ['import androidx.compose.material.icons.rounded.Extension'])
+_sub('screens/gesture/CustomisationLivePreviews.kt', [
+    ('"if i am a stone"', '"soft glass in the light"'),
+    ('"would you still love me?"', '"every song feels new"'),
+    ('"of course, what do you mean my love"', '"play it all night long"'),
+])
+print('v36 done')
