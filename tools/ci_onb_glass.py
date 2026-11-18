@@ -914,3 +914,12 @@ _t = _r(_t, '.background(Color.White.copy(alpha = 0.14f)))', '.background(Color(
 _t = _r(_t, '.background(Color.White.copy(alpha = 0.13f)))', '.background(Color(0xFF6ECDFF).copy(alpha = 0.22f)))')
 open(B + 'screens/gesture/SwipePreview.kt', 'w').write(_t)
 print('v39 done')
+
+# v40: sky storage slider, sky swipe-demo knob.
+_t = open(B + 'screens/settings/storage/StorageParts.kt').read()
+_t = _r(_t, 'drawRoundRect(StorageTrack, Offset(0f, top), Size(size.width, height), round)\n                drawRoundRect(Color.White, Offset(0f, top), Size(fill, height), round)', 'drawRoundRect(Color(0xFF6ECDFF).copy(alpha = 0.16f), Offset(0f, top), Size(size.width, height), round)\n                drawRoundRect(Color(0xFF6ECDFF).copy(alpha = 0.78f), Offset(0f, top), Size(fill, height), round)')
+open(B + 'screens/settings/storage/StorageParts.kt', 'w').write(_t)
+_t = open(B + 'screens/gesture/SwipePreview.kt').read()
+_t = _r(_t, 'Box(Modifier.size(26.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.5f)))', 'Box(Modifier.size(26.dp).clip(CircleShape).background(Color(0xFF6ECDFF).copy(alpha = 0.55f)))')
+open(B + 'screens/gesture/SwipePreview.kt', 'w').write(_t)
+print('v40 done')
