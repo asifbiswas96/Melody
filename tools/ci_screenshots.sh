@@ -630,9 +630,13 @@ if refresh && XY=$(python3 /tmp/tap.py "Melody Glass Test"); then
       sleep 3
       dump_strings || true
       shot 10c_create_playlist
+      tap_text "Name your playlist" || adb shell input tap 540 900
+      sleep 1
       adb shell input text "Glass_Mix"
       sleep 1
-      tap_exact "Create" || tap_exact "Done" || tap_exact "OK" || tap_exact "Save" || tap_text "Create" || true
+      shot 10c2_name_typed
+      sleep 1
+      tap_exact "Create playlist" || tap_text "Create playlist" || true
       sleep 3
       dump_strings || true
       shot 10d_after_create
